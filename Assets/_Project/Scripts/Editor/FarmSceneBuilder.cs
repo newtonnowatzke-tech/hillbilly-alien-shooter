@@ -21,7 +21,7 @@ namespace HillbillyAlienShooter.EditorTools
     /// </summary>
     public static class FarmSceneBuilder
     {
-        private const string ScenePath = "Assets/_Project/Scenes/Farm.unity";
+        public const string ScenePath = "Assets/_Project/Scenes/Farm.unity";
         private const string DataFolder = "Assets/_Project/Data";
         private const float FarmSize = 50f;
         private const float FenceHalf = 20f;
@@ -33,11 +33,25 @@ namespace HillbillyAlienShooter.EditorTools
             if (!EditorUtility.DisplayDialog(
                     "Build Farm Scene",
                     "This creates a fresh Farm.unity with all current gameplay wired up\n" +
-                    "(core loop + horse riding, hills, interaction prompts).\n\n" +
+                    "(core loop + horse riding + camera/pause polish).\n\n" +
                     "Any unsaved changes in the current scene will be discarded. Continue?",
                     "Build it, partner!", "Cancel"))
                 return;
 
+            BuildFarmSceneHeadless();
+
+            EditorUtility.DisplayDialog("Done!",
+                "Farm scene built at:\n" + ScenePath +
+                "\n\nPress Play and start blastin'. Yee-haw!", "Nice");
+        }
+
+        /// <summary>
+        /// Dialog-free scene build, callable from CI (WebGLBuilder) and the menu
+        /// item alike. Generates data assets, assembles the scene, saves it, and
+        /// registers it in Build Settings.
+        /// </summary>
+        public static void BuildFarmSceneHeadless()
+        {
             // --- Data assets first, so we can wire them into components ---
             EnsureFolders();
             EnemyData enemyData = CreateOrLoad<EnemyData>($"{DataFolder}/EnemyData_LittleAlien.asset", d =>
@@ -98,6 +112,7 @@ namespace HillbillyAlienShooter.EditorTools
             AssignObjectRef(spawner, "wave", waveData);
 
             new GameObject("HUD").AddComponent<HUDController>();
+            new GameObject("PauseMenu").AddComponent<PauseMenu>();
 
             // --- Save + register in build settings so restarts work at runtime ---
             EditorSceneManager.MarkSceneDirty(scene);
@@ -105,9 +120,6 @@ namespace HillbillyAlienShooter.EditorTools
             RegisterInBuildSettings(ScenePath);
             AssetDatabase.SaveAssets();
 
-            EditorUtility.DisplayDialog("Done!",
-                "Farm scene built at:\n" + ScenePath +
-                "\n\nPress Play and start blastin'. Yee-haw!", "Nice");
             Debug.Log("[Hillbilly] Farm scene built and saved to " + ScenePath);
         }
 
@@ -201,7 +213,7 @@ namespace HillbillyAlienShooter.EditorTools
             EnsureFolder("Assets/_Project/Data");
         }
 
-        private static void EnsureFolder(string path)
+        internal static void EnsureFolder(string path)
         {
             if (AssetDatabase.IsValidFolder(path)) return;
             string parent = System.IO.Path.GetDirectoryName(path).Replace('\\', '/');

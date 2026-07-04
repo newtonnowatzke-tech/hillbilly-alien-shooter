@@ -41,6 +41,10 @@ namespace HillbillyAlienShooter.Horse
         public HorseState State { get; private set; } = HorseState.Idle;
         public float CurrentSpeed { get; private set; }
 
+        /// <summary>0..1 fraction of top speed — used by the camera for FOV kick.</summary>
+        public float SpeedNormalized => data == null ? 0f
+            : Mathf.Clamp01(Mathf.Abs(CurrentSpeed) / Mathf.Max(0.01f, data.maxSpeed));
+
         private CharacterController _cc;
         private PlayerController _rider;        // non-null only while Mounted
         private PlayerInputHandler _playerInput; // the (single) player's input, for whistle + riding

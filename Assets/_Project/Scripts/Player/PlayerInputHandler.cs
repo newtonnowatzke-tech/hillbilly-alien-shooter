@@ -26,6 +26,7 @@ namespace HillbillyAlienShooter.Player
         private InputAction _reload;
         private InputAction _interact;
         private InputAction _whistle;
+        private InputAction _togglePerspective;
 
         // ---- Public read API consumed by other player components ----
         public Vector2 MoveInput { get; private set; }
@@ -35,6 +36,18 @@ namespace HillbillyAlienShooter.Player
         public bool ReloadPressedThisFrame { get; private set; }
         public bool InteractPressedThisFrame { get; private set; }
         public bool WhistlePressedThisFrame { get; private set; }
+        public bool TogglePerspectivePressedThisFrame { get; private set; }
+
+        // ---- Settings surface (persisted/driven by the pause menu) ----
+        /// <summary>Mouse look sensitivity (per-pixel multiplier).</summary>
+        public float MouseSensitivity
+        {
+            get => mouseSensitivity;
+            set => mouseSensitivity = Mathf.Clamp(value, 0.01f, 0.5f);
+        }
+
+        /// <summary>Invert vertical look.</summary>
+        public bool InvertY { get; set; }
 
         private void Awake()
         {
@@ -76,6 +89,11 @@ namespace HillbillyAlienShooter.Player
             _whistle = new InputAction("Whistle", InputActionType.Button);
             _whistle.AddBinding("<Keyboard>/h");
             _whistle.AddBinding("<Gamepad>/dpad/up");
+
+            // Camera first/third person toggle: V / right stick click.
+            _togglePerspective = new InputAction("TogglePerspective", InputActionType.Button);
+            _togglePerspective.AddBinding("<Keyboard>/v");
+            _togglePerspective.AddBinding("<Gamepad>/rightStickPress");
         }
 
         private void OnEnable()
@@ -86,6 +104,7 @@ namespace HillbillyAlienShooter.Player
             _reload.Enable();
             _interact.Enable();
             _whistle.Enable();
+            _togglePerspective.Enable();
         }
 
         private void OnDisable()
@@ -96,6 +115,7 @@ namespace HillbillyAlienShooter.Player
             _reload.Disable();
             _interact.Disable();
             _whistle.Disable();
+            _togglePerspective.Disable();
         }
 
         private void OnDestroy()
@@ -106,6 +126,7 @@ namespace HillbillyAlienShooter.Player
             _reload?.Dispose();
             _interact?.Dispose();
             _whistle?.Dispose();
+            _togglePerspective?.Dispose();
         }
 
         private void Update()
@@ -118,15 +139,18 @@ namespace HillbillyAlienShooter.Player
             // most recently actuated the action.
             Vector2 rawLook = _look.ReadValue<Vector2>();
             bool fromGamepad = _look.activeControl != null && _look.activeControl.device is Gamepad;
-            LookDelta = fromGamepad
+            Vector2 look = fromGamepad
                 ? rawLook * (gamepadLookSpeed * Time.deltaTime)
                 : rawLook * mouseSensitivity;
+            if (InvertY) look.y = -look.y;
+            LookDelta = look;
 
             FirePressedThisFrame = _fire.WasPressedThisFrame();
             FireHeld = _fire.IsPressed();
             ReloadPressedThisFrame = _reload.WasPressedThisFrame();
             InteractPressedThisFrame = _interact.WasPressedThisFrame();
             WhistlePressedThisFrame = _whistle.WasPressedThisFrame();
+            TogglePerspectivePressedThisFrame = _togglePerspective.WasPressedThisFrame();
         }
     }
 }

@@ -319,6 +319,7 @@ namespace HillbillyAlienShooter.Utils
             root.AddComponent<PlayerInputHandler>();
             root.AddComponent<PlayerController>();
             root.AddComponent<PlayerInteraction>();
+            root.AddComponent<CameraRig>(); // third/first person framing (V toggles)
             root.AddComponent<Health>();
             root.AddComponent<PlayerHealth>();
 

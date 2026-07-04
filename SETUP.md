@@ -73,6 +73,8 @@ and aliens shamble in from the tree line to rustle your cattle.
 | Whistle (horse: follow ↔ stay) | H | D-pad up |
 | Ride: throttle / brake / back up | W / S | Left stick ↑ / ↓ |
 | Ride: steer | A / D | Left stick ← / → |
+| Toggle camera (third ↔ first person) | V | Right stick click |
+| Pause / resume | Esc or P | Start |
 | Restart (after win/lose) | R or Enter | — |
 
 > **Riding tip:** while mounted, W/S/A/D drives **Buttercup** (momentum + speed-
@@ -80,6 +82,20 @@ and aliens shamble in from the tree line to rustle your cattle.
 > sideways at full gallop. That's the intended cattle-defense power move.
 
 ---
+
+## Testing checklist (Packet 1.3 — camera & controls)
+
+- [ ] **Third person default:** game starts over-the-shoulder; the hillbilly capsule and shotgun tracers are visible.
+- [ ] **Camera toggle:** V smoothly slides between third and first person (both on foot and mounted).
+- [ ] **Mounted framing:** mounting zooms the camera out so Buttercup fits; FOV widens slightly at full gallop.
+- [ ] **Camera collision:** back up against the barn/fence — the camera pulls in instead of clipping through walls.
+- [ ] **Crosshair truth:** what's under the crosshair is what gets hit, in both camera modes.
+- [ ] **Pause:** Esc (or P) freezes everything (aliens, beams, cows mid-lift), unlocks the cursor, shows the menu.
+- [ ] **Resume:** button or Esc/P again — cursor re-locks, action continues exactly where it froze.
+- [ ] **Settings:** sensitivity slider changes look speed live; Invert Y flips; both survive a restart (PlayerPrefs).
+- [ ] **Restart from pause:** reloads the wave with timescale restored.
+- [ ] **No pause-fire:** clicking Resume never fires the shotgun.
+- [ ] **WebGL (if built):** first click captures the mouse; Esc in-browser auto-pauses; Quit button absent.
 
 ## Testing checklist (Packet 1.2 — horse)
 
@@ -142,19 +158,19 @@ The `GameManager` has **Cattle Needed To Win** (default 1). The `WaveSpawner` ha
 ## Architecture at a glance
 
 ```
-Core/      GameState, GameEvents (static event bus), GameManager (win/lose), IInteractable
+Core/      GameState, GameEvents (static event bus), GameManager (win/lose/pause), IInteractable
 Combat/    IDamageable, DamageInfo, Health (shared HP)
 Player/    PlayerInputHandler (New Input System), PlayerController (+mount/dismount),
-           PlayerInteraction (proximity prompts), PlayerHealth
+           PlayerInteraction (proximity prompts), CameraRig (third/first person), PlayerHealth
 Horse/     HorseController (Idle/Follow/Stay/Mounted state machine + riding physics)
 Weapons/   Shotgun (hitscan spread + ammo/reload — works on horseback)
 Enemies/   AlienEnemy (hunt cow → beam → melee fallback)
 Cattle/    Cattle (abduction meter + terrain-aware wander)      [namespace: Livestock]
 Waves/     WaveSpawner (drip-spawn one wave)
 Data/      WeaponData, EnemyData, WaveData, HorseData (ScriptableObjects)
-UI/        HUDController (self-building, event-driven)
+UI/        HUDController, PauseMenu (both self-building, event-driven)
 Utils/     LowPolyFactory (all placeholder primitives), GameLayers, GroundSnap
-Editor/    FarmSceneBuilder (the one-click scene generator)
+Editor/    FarmSceneBuilder (scene generator), WebGLBuilder (browser builds — see docs/WEBGL.md)
 ```
 
 > **Upgrading from Packet 1.1?** After pulling the new code, re-run

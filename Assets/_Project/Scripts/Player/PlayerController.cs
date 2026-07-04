@@ -33,6 +33,9 @@ namespace HillbillyAlienShooter.Player
         /// <summary>True while riding a horse. Movement input is routed to the horse.</summary>
         public bool IsMounted { get; private set; }
 
+        /// <summary>The head-height yaw/pitch anchor the camera rig positions against.</summary>
+        public Transform CameraPivot => cameraPivot;
+
         private void Awake()
         {
             _controller = GetComponent<CharacterController>();
@@ -54,6 +57,13 @@ namespace HillbillyAlienShooter.Player
         private void Update()
         {
             if (!_controlEnabled) return;
+
+            // Browsers (WebGL) only grant pointer lock on a user gesture, and drop
+            // it on Esc/alt-tab. If we're playing but lost the lock, re-grab it on
+            // the next click. Harmless no-op on desktop where the lock persists.
+            if (Cursor.lockState != CursorLockMode.Locked && _input.FirePressedThisFrame)
+                LockCursor(true);
+
             HandleLook();
 
             // While mounted, the horse consumes MoveInput itself; we only keep
