@@ -30,6 +30,9 @@ namespace HillbillyAlienShooter.Player
         private float _verticalVel;    // gravity accumulator
         private bool _controlEnabled = true;
 
+        /// <summary>True while riding a horse. Movement input is routed to the horse.</summary>
+        public bool IsMounted { get; private set; }
+
         private void Awake()
         {
             _controller = GetComponent<CharacterController>();
@@ -52,7 +55,40 @@ namespace HillbillyAlienShooter.Player
         {
             if (!_controlEnabled) return;
             HandleLook();
-            HandleMove();
+
+            // While mounted, the horse consumes MoveInput itself; we only keep
+            // free-look running (so you can aim & shoot sideways at a gallop).
+            if (!IsMounted)
+                HandleMove();
+        }
+
+        // -------------------------------------------------------------------
+        // Mounting (called by HorseController)
+        // -------------------------------------------------------------------
+
+        /// <summary>Seat the player on a horse: park the body on the seat and hand movement to the horse.</summary>
+        public void MountTo(Transform seat)
+        {
+            IsMounted = true;
+            _controller.enabled = false;       // no self-collision while carried
+            _verticalVel = 0f;
+
+            transform.SetParent(seat, worldPositionStays: false);
+            transform.localPosition = Vector3.zero;
+            transform.localRotation = Quaternion.identity; // face the horse's forward on mount
+        }
+
+        /// <summary>Put the player back on their own feet at the given world position.</summary>
+        public void DismountTo(Vector3 worldPosition)
+        {
+            transform.SetParent(null);
+            transform.position = worldPosition;
+            // Keep the yaw we were looking at; make sure the body is upright.
+            transform.rotation = Quaternion.Euler(0f, transform.eulerAngles.y, 0f);
+
+            _controller.enabled = true;
+            _verticalVel = 0f;
+            IsMounted = false;
         }
 
         // Yaw rotates the whole body; pitch rotates only the camera pivot.

@@ -32,7 +32,8 @@ namespace HillbillyAlienShooter.EditorTools
         {
             if (!EditorUtility.DisplayDialog(
                     "Build Farm Scene",
-                    "This creates a fresh Farm.unity with all Packet 1.1 gameplay wired up.\n\n" +
+                    "This creates a fresh Farm.unity with all current gameplay wired up\n" +
+                    "(core loop + horse riding, hills, interaction prompts).\n\n" +
                     "Any unsaved changes in the current scene will be discarded. Continue?",
                     "Build it, partner!", "Cancel"))
                 return;
@@ -56,6 +57,11 @@ namespace HillbillyAlienShooter.EditorTools
             if (waveData.spawns.Count > 0) waveData.spawns[0].enemy = enemyData;
             EditorUtility.SetDirty(waveData);
 
+            HorseData horseData = CreateOrLoad<HorseData>($"{DataFolder}/HorseData_Buttercup.asset", h =>
+            {
+                h.displayName = "Buttercup";
+            });
+
             // --- New empty scene ---
             var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
             SetupNightLighting();
@@ -65,10 +71,15 @@ namespace HillbillyAlienShooter.EditorTools
             LowPolyFactory.BuildBarn(new Vector3(0f, 0f, 15f));
             BuildPerimeterFence();
             ScatterTrees();
+            BuildHills();
 
             // --- Player ---
             var player = LowPolyFactory.BuildPlayer(new Vector3(0f, 0f, -6f));
             AssignObjectRef(player.GetComponent<HillbillyAlienShooter.Weapons.Shotgun>(), "weaponData", weaponData);
+
+            // --- Buttercup, waitin' by the barn ---
+            var horse = LowPolyFactory.BuildHorse(horseData, new Vector3(5.5f, 0f, 11f));
+            horse.transform.rotation = Quaternion.Euler(0f, -140f, 0f); // facing the pasture
 
             // --- Cattle herd ---
             var herd = new GameObject("Herd").transform;
@@ -141,6 +152,16 @@ namespace HillbillyAlienShooter.EditorTools
             LowPolyFactory.BuildFenceLine(new Vector3(h, 0f, -h), new Vector3(h, 0f, h), root);
             LowPolyFactory.BuildFenceLine(new Vector3(h, 0f, h), new Vector3(-h, 0f, h), root);
             LowPolyFactory.BuildFenceLine(new Vector3(-h, 0f, h), new Vector3(-h, 0f, -h), root);
+        }
+
+        private static void BuildHills()
+        {
+            // Rolling terrain to prove out riding physics + AI ground snapping.
+            // Kept away from the herd (centre) and the barn (0,0,15).
+            var root = new GameObject("Hills").transform;
+            LowPolyFactory.BuildHill(new Vector3(-13f, 0f, -11f), 8f, 2.2f).transform.SetParent(root, true);
+            LowPolyFactory.BuildHill(new Vector3(14f, 0f, -13f), 7f, 1.8f).transform.SetParent(root, true);
+            LowPolyFactory.BuildHill(new Vector3(-15f, 0f, 9f), 6.5f, 1.6f).transform.SetParent(root, true);
         }
 
         private static void ScatterTrees()

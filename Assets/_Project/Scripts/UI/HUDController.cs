@@ -22,6 +22,8 @@ namespace HillbillyAlienShooter.UI
         private Text _bannerText;
         private Text _endText;
         private Text _endHint;
+        private Text _promptText;   // "[E] Ride Buttercup"
+        private Text _horseText;    // "Buttercup: followin' you"
 
         private Font _font;
         private float _bannerHideTime;
@@ -41,6 +43,8 @@ namespace HillbillyAlienShooter.UI
             GameEvents.ReloadStateChanged += OnReload;
             GameEvents.WaveStarted += OnWaveStarted;
             GameEvents.GameStateChanged += OnGameState;
+            GameEvents.InteractPromptChanged += OnPrompt;
+            GameEvents.HorseStateChanged += OnHorseState;
         }
 
         private void OnDisable()
@@ -51,6 +55,8 @@ namespace HillbillyAlienShooter.UI
             GameEvents.ReloadStateChanged -= OnReload;
             GameEvents.WaveStarted -= OnWaveStarted;
             GameEvents.GameStateChanged -= OnGameState;
+            GameEvents.InteractPromptChanged -= OnPrompt;
+            GameEvents.HorseStateChanged -= OnHorseState;
         }
 
         private void Update()
@@ -75,6 +81,20 @@ namespace HillbillyAlienShooter.UI
         {
             _reloadText.enabled = reloading;
             _reloadText.text = "RELOADIN'...";
+        }
+
+        private void OnPrompt(string prompt)
+        {
+            bool has = !string.IsNullOrEmpty(prompt);
+            _promptText.enabled = has;
+            if (has) _promptText.text = prompt;
+        }
+
+        private void OnHorseState(string status)
+        {
+            bool has = !string.IsNullOrEmpty(status);
+            _horseText.enabled = has;
+            if (has) _horseText.text = status;
         }
 
         private void OnWaveStarted(int waveNumber)
@@ -159,6 +179,16 @@ namespace HillbillyAlienShooter.UI
                 Vector2.zero, new Vector2(1200f, 60f), 34, TextAnchor.MiddleCenter, new Color(0.9f, 0.9f, 0.9f));
             _endHint.text = "Press R to saddle up again";
             _endHint.enabled = false;
+
+            // Interaction prompt, low-centre near the crosshair's eyeline.
+            _promptText = MakeText(root, "PromptText", new Vector2(0.5f, 0.22f), new Vector2(0.5f, 0.5f),
+                Vector2.zero, new Vector2(900f, 50f), 30, TextAnchor.MiddleCenter, new Color(0.85f, 1f, 0.85f));
+            _promptText.enabled = false;
+
+            // Horse status, tucked under the health readout.
+            _horseText = MakeText(root, "HorseText", new Vector2(0f, 1f), new Vector2(0f, 1f),
+                new Vector2(30f, -70f), new Vector2(600f, 40f), 24, TextAnchor.UpperLeft, new Color(0.95f, 0.85f, 0.6f));
+            _horseText.enabled = false;
         }
 
         private Text MakeText(Transform parent, string name, Vector2 anchorMin, Vector2 anchorMax,

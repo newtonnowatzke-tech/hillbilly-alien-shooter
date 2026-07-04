@@ -65,13 +65,35 @@ and aliens shamble in from the tree line to rustle your cattle.
 ### Controls
 | Action | Keyboard/Mouse | Gamepad |
 |---|---|---|
-| Move | WASD / Arrows | Left stick |
-| Look | Mouse | Right stick |
+| Move (on foot) | WASD / Arrows | Left stick |
+| Look / aim | Mouse | Right stick |
 | Fire shotgun | Left mouse | Right trigger |
 | Reload | R | West button (X/□) |
+| Interact (mount/dismount horse) | E | North button (Y/△) |
+| Whistle (horse: follow ↔ stay) | H | D-pad up |
+| Ride: throttle / brake / back up | W / S | Left stick ↑ / ↓ |
+| Ride: steer | A / D | Left stick ← / → |
 | Restart (after win/lose) | R or Enter | — |
 
+> **Riding tip:** while mounted, W/S/A/D drives **Buttercup** (momentum + speed-
+> sensitive steering), but your **mouse aim stays free** — you can blast aliens
+> sideways at full gallop. That's the intended cattle-defense power move.
+
 ---
+
+## Testing checklist (Packet 1.2 — horse)
+
+- [ ] **Finding:** Buttercup stands by the barn; walking within ~3 m shows "[E] Ride Buttercup".
+- [ ] **Mounting:** E snaps you into the saddle; the prompt flips to "[E] Hop off Buttercup".
+- [ ] **Riding:** W accelerates to a gallop (~2× foot speed), S brakes then backs up, A/D steers — tight turns at a walk, wide arcs at a gallop.
+- [ ] **Shooting while riding:** mouse aim stays free while W drives the horse; you can fire in any direction mid-gallop.
+- [ ] **Dismount:** E drops you beside the horse (never inside a fence/barn).
+- [ ] **Follow:** after dismounting, Buttercup trots behind you and gallops to catch up when far; HUD shows "Buttercup: followin' you".
+- [ ] **Whistle:** H toggles follow/stay from anywhere; from Stay/Idle she comes to you.
+- [ ] **Teleport failsafe:** leave her > 45 m behind — she reappears near you ("knows a shortcut").
+- [ ] **Terrain:** riding up/over the new hills works; aliens and wandering cows follow the hill surface instead of clipping.
+- [ ] **Collision:** the horse can't gallop through fences, trees, or the barn.
+- [ ] **End-of-round:** win/lose freezes horse + prompts; no mounting from the game-over screen.
 
 ## Testing checklist (Packet 1.1)
 
@@ -97,6 +119,8 @@ Select the assets in `Assets/_Project/Data/` and tweak in the Inspector:
 - **WeaponData_Shotgun** — damage, pellet count, spread, mag size, reload time, fire rate.
 - **EnemyData_LittleAlien** — health, move speed, grab range, abduction rate, melee.
 - **WaveData_Wave1** — enemy count, spawn interval, start delay.
+- **HorseData_Buttercup** — gallop speed, acceleration/braking, turn rates, follow
+  distances, teleport failsafe distance, coat/mane/saddle colors.
 
 The `GameManager` has **Cattle Needed To Win** (default 1). The `WaveSpawner` has a
 **Spawn Ring Radius** and a gizmo showing where aliens come from.
@@ -118,18 +142,24 @@ The `GameManager` has **Cattle Needed To Win** (default 1). The `WaveSpawner` ha
 ## Architecture at a glance
 
 ```
-Core/      GameState, GameEvents (static event bus), GameManager (win/lose)
+Core/      GameState, GameEvents (static event bus), GameManager (win/lose), IInteractable
 Combat/    IDamageable, DamageInfo, Health (shared HP)
-Player/    PlayerInputHandler (New Input System), PlayerController, PlayerHealth
-Weapons/   Shotgun (hitscan spread + ammo/reload)
+Player/    PlayerInputHandler (New Input System), PlayerController (+mount/dismount),
+           PlayerInteraction (proximity prompts), PlayerHealth
+Horse/     HorseController (Idle/Follow/Stay/Mounted state machine + riding physics)
+Weapons/   Shotgun (hitscan spread + ammo/reload — works on horseback)
 Enemies/   AlienEnemy (hunt cow → beam → melee fallback)
-Cattle/    Cattle (abduction meter + static registry/tallies)   [namespace: Livestock]
+Cattle/    Cattle (abduction meter + terrain-aware wander)      [namespace: Livestock]
 Waves/     WaveSpawner (drip-spawn one wave)
-Data/      WeaponData, EnemyData, WaveData (ScriptableObjects)
+Data/      WeaponData, EnemyData, WaveData, HorseData (ScriptableObjects)
 UI/        HUDController (self-building, event-driven)
-Utils/     LowPolyFactory (all placeholder primitives, shared)
+Utils/     LowPolyFactory (all placeholder primitives), GameLayers, GroundSnap
 Editor/    FarmSceneBuilder (the one-click scene generator)
 ```
+
+> **Upgrading from Packet 1.1?** After pulling the new code, re-run
+> **Tools ▸ Hillbilly ▸ Build Farm Scene** — the saved scene predates the horse,
+> hills, and interaction system, and a rebuild wires them all in.
 
 **Key idea:** systems talk through `GameEvents`, not directly to each other, and all
 placeholder art comes from one `LowPolyFactory` — so swapping in real low-poly models
