@@ -24,6 +24,8 @@ namespace HillbillyAlienShooter.Player
         private InputAction _look;
         private InputAction _fire;
         private InputAction _reload;
+        private InputAction _interact;
+        private InputAction _whistle;
 
         // ---- Public read API consumed by other player components ----
         public Vector2 MoveInput { get; private set; }
@@ -31,6 +33,8 @@ namespace HillbillyAlienShooter.Player
         public bool FirePressedThisFrame { get; private set; }
         public bool FireHeld { get; private set; }
         public bool ReloadPressedThisFrame { get; private set; }
+        public bool InteractPressedThisFrame { get; private set; }
+        public bool WhistlePressedThisFrame { get; private set; }
 
         private void Awake()
         {
@@ -62,6 +66,16 @@ namespace HillbillyAlienShooter.Player
             _reload = new InputAction("Reload", InputActionType.Button);
             _reload.AddBinding("<Keyboard>/r");
             _reload.AddBinding("<Gamepad>/buttonWest");
+
+            // Interact (mount horse, future pickups): E / North face button.
+            _interact = new InputAction("Interact", InputActionType.Button);
+            _interact.AddBinding("<Keyboard>/e");
+            _interact.AddBinding("<Gamepad>/buttonNorth");
+
+            // Whistle for the horse (follow/stay toggle): H / D-pad up.
+            _whistle = new InputAction("Whistle", InputActionType.Button);
+            _whistle.AddBinding("<Keyboard>/h");
+            _whistle.AddBinding("<Gamepad>/dpad/up");
         }
 
         private void OnEnable()
@@ -70,6 +84,8 @@ namespace HillbillyAlienShooter.Player
             _look.Enable();
             _fire.Enable();
             _reload.Enable();
+            _interact.Enable();
+            _whistle.Enable();
         }
 
         private void OnDisable()
@@ -78,6 +94,8 @@ namespace HillbillyAlienShooter.Player
             _look.Disable();
             _fire.Disable();
             _reload.Disable();
+            _interact.Disable();
+            _whistle.Disable();
         }
 
         private void OnDestroy()
@@ -86,6 +104,8 @@ namespace HillbillyAlienShooter.Player
             _look?.Dispose();
             _fire?.Dispose();
             _reload?.Dispose();
+            _interact?.Dispose();
+            _whistle?.Dispose();
         }
 
         private void Update()
@@ -105,6 +125,8 @@ namespace HillbillyAlienShooter.Player
             FirePressedThisFrame = _fire.WasPressedThisFrame();
             FireHeld = _fire.IsPressed();
             ReloadPressedThisFrame = _reload.WasPressedThisFrame();
+            InteractPressedThisFrame = _interact.WasPressedThisFrame();
+            WhistlePressedThisFrame = _whistle.WasPressedThisFrame();
         }
     }
 }

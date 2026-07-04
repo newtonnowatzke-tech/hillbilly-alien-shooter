@@ -61,6 +61,20 @@ namespace HillbillyAlienShooter.Core
         public static void RaisePlayerDied() => PlayerDied?.Invoke();
 
         // ---------------------------------------------------------------
+        // Interaction & horse
+        // ---------------------------------------------------------------
+        /// <summary>
+        /// The best available interaction prompt near the player, or null/empty
+        /// when there is nothing to interact with (HUD hides the prompt).
+        /// </summary>
+        public static event Action<string> InteractPromptChanged;
+        public static void RaiseInteractPromptChanged(string prompt) => InteractPromptChanged?.Invoke(prompt);
+
+        /// <summary>Human-readable status of the horse for the HUD (e.g. "Buttercup: followin' you").</summary>
+        public static event Action<string> HorseStateChanged;
+        public static void RaiseHorseStateChanged(string status) => HorseStateChanged?.Invoke(status);
+
+        // ---------------------------------------------------------------
         // Weapon
         // ---------------------------------------------------------------
         public static event Action WeaponFired;
@@ -89,6 +103,8 @@ namespace HillbillyAlienShooter.Core
             CattleCountsChanged = null;
             PlayerHealthChanged = null;
             PlayerDied = null;
+            InteractPromptChanged = null;
+            HorseStateChanged = null;
             WeaponFired = null;
             AmmoChanged = null;
             ReloadStateChanged = null;

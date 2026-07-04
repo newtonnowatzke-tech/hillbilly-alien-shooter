@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 using HillbillyAlienShooter.Core;
+using HillbillyAlienShooter.Utils;
 
 namespace HillbillyAlienShooter.Livestock
 {
@@ -113,6 +114,13 @@ namespace HillbillyAlienShooter.Livestock
 
             Vector3 flat = new Vector3(_wanderTarget.x, _groundPos.y, _wanderTarget.z);
             _groundPos = Vector3.MoveTowards(_groundPos, flat, wanderSpeed * Time.deltaTime);
+
+            // Terrain following: keep our resting height glued to the ground/hills
+            // so the abduction lift always starts from the true surface.
+            Vector3 probe = _groundPos + Vector3.up * 4f;
+            if (Physics.Raycast(probe, Vector3.down, out RaycastHit hit, 12f,
+                    GameLayers.GroundMask, QueryTriggerInteraction.Ignore))
+                _groundPos.y = hit.point.y;
         }
 
         private void Rustled()

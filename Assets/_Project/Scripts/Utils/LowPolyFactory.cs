@@ -82,8 +82,27 @@ namespace HillbillyAlienShooter.Utils
         {
             var go = GameObject.CreatePrimitive(PrimitiveType.Plane); // 10x10 units at scale 1
             go.name = "Ground";
+            go.layer = GameLayers.Ground;
             go.transform.localScale = new Vector3(size / 10f, 1f, size / 10f);
             go.GetComponent<Renderer>().sharedMaterial = MakeMaterial(Grass);
+            return go;
+        }
+
+        /// <summary>
+        /// A gentle grassy mound: a squashed sphere buried past its equator so
+        /// only the walkable dome pokes out. Gives the flat farm some rolling
+        /// terrain to prove out horse riding + ground snapping.
+        /// </summary>
+        public static GameObject BuildHill(Vector3 pos, float radius, float height)
+        {
+            var go = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+            go.name = "Hill";
+            go.layer = GameLayers.Ground;
+            // Semi-axes (radius, height, radius); centre sunk so ~60% of the dome shows.
+            go.transform.position = new Vector3(pos.x, -height * 0.4f, pos.z);
+            go.transform.localScale = new Vector3(radius * 2f, height * 2f, radius * 2f);
+            go.GetComponent<Renderer>().sharedMaterial = MakeMaterial(
+                new Color(Grass.r * 1.12f, Grass.g * 1.12f, Grass.b * 1.05f)); // slightly sunnier green
             return go;
         }
 
@@ -212,6 +231,67 @@ namespace HillbillyAlienShooter.Utils
             root.AddComponent<Health>();
             var alien = root.AddComponent<AlienEnemy>();
             alien.Configure(data);
+            root.AddComponent<GroundSnap>(); // hug the hills while shambling
+            return root;
+        }
+
+        // -----------------------------------------------------------------
+        // Horse
+        // -----------------------------------------------------------------
+
+        public static GameObject BuildHorse(HillbillyAlienShooter.Data.HorseData data, Vector3 pos)
+        {
+            if (data == null) data = HillbillyAlienShooter.Data.HorseData.CreateDefault();
+
+            // Root origin at hooves.
+            var root = new GameObject("Horse_" + data.displayName);
+            root.transform.position = pos;
+
+            var coat = MakeMaterial(data.bodyColor, 0.15f);
+            var mane = MakeMaterial(data.maneColor, 0.1f);
+            var saddle = MakeMaterial(data.saddleColor, 0.25f);
+            var blaze = MakeMaterial(CowWhite);
+
+            // Body & hindquarters.
+            Prim(PrimitiveType.Cube, root.transform, "Body", new Vector3(0f, 1.15f, 0f), new Vector3(0.75f, 0.75f, 1.9f), coat, collider: false);
+            // Neck leaning forward, head on top.
+            var neck = Prim(PrimitiveType.Cube, root.transform, "Neck", new Vector3(0f, 1.75f, 0.85f), new Vector3(0.35f, 0.95f, 0.35f), coat, collider: false);
+            neck.transform.localRotation = Quaternion.Euler(-32f, 0f, 0f);
+            Prim(PrimitiveType.Cube, root.transform, "Head", new Vector3(0f, 2.25f, 1.28f), new Vector3(0.32f, 0.42f, 0.65f), coat, collider: false);
+            Prim(PrimitiveType.Cube, root.transform, "Blaze", new Vector3(0f, 2.28f, 1.58f), new Vector3(0.12f, 0.24f, 0.1f), blaze, collider: false);
+            // Ears.
+            Prim(PrimitiveType.Cube, root.transform, "Ear_L", new Vector3(-0.11f, 2.53f, 1.1f), new Vector3(0.08f, 0.18f, 0.06f), mane, collider: false);
+            Prim(PrimitiveType.Cube, root.transform, "Ear_R", new Vector3(0.11f, 2.53f, 1.1f), new Vector3(0.08f, 0.18f, 0.06f), mane, collider: false);
+            // Mane along the back of the neck + tail.
+            var maneGo = Prim(PrimitiveType.Cube, root.transform, "Mane", new Vector3(0f, 1.85f, 0.62f), new Vector3(0.14f, 0.9f, 0.2f), mane, collider: false);
+            maneGo.transform.localRotation = Quaternion.Euler(-32f, 0f, 0f);
+            var tail = Prim(PrimitiveType.Cube, root.transform, "Tail", new Vector3(0f, 1.15f, -1.1f), new Vector3(0.15f, 0.75f, 0.15f), mane, collider: false);
+            tail.transform.localRotation = Quaternion.Euler(25f, 0f, 0f);
+            // Legs + dark hooves.
+            for (int i = 0; i < 4; i++)
+            {
+                float x = (i % 2 == 0) ? -0.27f : 0.27f;
+                float z = (i < 2) ? 0.68f : -0.68f;
+                Prim(PrimitiveType.Cube, root.transform, "Leg", new Vector3(x, 0.42f, z), new Vector3(0.17f, 0.85f, 0.17f), coat, collider: false);
+                Prim(PrimitiveType.Cube, root.transform, "Hoof", new Vector3(x, 0.06f, z), new Vector3(0.19f, 0.12f, 0.19f), mane, collider: false);
+            }
+            // Saddle + the seat the player snaps to.
+            Prim(PrimitiveType.Cube, root.transform, "Saddle", new Vector3(0f, 1.58f, -0.15f), new Vector3(0.55f, 0.16f, 0.75f), saddle, collider: false);
+
+            var seat = new GameObject("MountPoint");
+            seat.transform.SetParent(root.transform, false);
+            seat.transform.localPosition = new Vector3(0f, 1.85f, -0.15f);
+
+            // The mover + the interactable hitbox in one: a CharacterController.
+            var cc = root.AddComponent<CharacterController>();
+            cc.center = new Vector3(0f, 1.1f, 0f);
+            cc.height = 2.0f;
+            cc.radius = 0.6f;
+            cc.slopeLimit = 50f;
+            cc.stepOffset = 0.45f;
+
+            var horse = root.AddComponent<HillbillyAlienShooter.Horse.HorseController>();
+            horse.Configure(data, seat.transform);
             return root;
         }
 
@@ -238,6 +318,7 @@ namespace HillbillyAlienShooter.Utils
 
             root.AddComponent<PlayerInputHandler>();
             root.AddComponent<PlayerController>();
+            root.AddComponent<PlayerInteraction>();
             root.AddComponent<Health>();
             root.AddComponent<PlayerHealth>();
 
