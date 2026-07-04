@@ -11,6 +11,7 @@ The skies light up with glowing saucers in the dead of night. Greedy little gree
 ## 📋 Table of Contents
 
 - [About the Game](#-about-the-game)
+- [Play in Your Browser](#-play-in-your-browser-webgl)
 - [Current Features](#-current-features)
 - [Development Status](#-development-status)
 - [Quickstart](#-quickstart)
@@ -29,7 +30,7 @@ The skies light up with glowing saucers in the dead of night. Greedy little gree
 | | |
 |---|---|
 | **Genre** | Wave-based defense / action shooter |
-| **Perspective** | First-person (third-person camera arrives in Packet 1.3) |
+| **Perspective** | Third-person over-the-shoulder (V toggles first-person) |
 | **Art style** | Bright, saturated low-poly; night-time farm palette (think *Sneaky Sasquatch* meets *Pokémon Stadium*) |
 | **Target playtime** | ~1 h 20 min full campaign |
 | **Progression** | Farm ▸ Alien Ship ▸ Alien Homeworld ▸ **Alien King** boss |
@@ -37,6 +38,15 @@ The skies light up with glowing saucers in the dead of night. Greedy little gree
 | **Platform** | PC / Standalone (gamepad-friendly; mobile possible later) |
 
 You defend your herd across escalating waves of alien rustlers — Little scouts, faster Mediums, tough Larges, tanky Brutes, and dish-shaped UFOs with abduction beams. Alien tech drops power up your shotgun. Save enough cattle and you take the fight to *them*: board the mothership, invade the homeworld, and give the Alien King a double-barrel diplomacy lesson.
+
+## 🌐 Play in Your Browser (WebGL)
+
+The repo ships a full WebGL pipeline — see **[docs/WEBGL.md](docs/WEBGL.md)**:
+
+- **Instant local playtest:** in Unity, **Tools ▸ Hillbilly ▸ Build WebGL** → serve `build/WebGL/` with any static server (or drag-drop the zip onto itch.io).
+- **Auto-published build:** every merge to `main` builds and deploys to GitHub Pages at **<https://newtonnowatzke-tech.github.io/hillbilly-alien-shooter/>** — after a one-time setup (enable Pages + add your free Unity license secrets; ~10 min, fully documented in the guide).
+
+Browser quirks are pre-handled: click once to capture the mouse, Esc auto-pauses (browsers reserve it to release the cursor), P also pauses, and Quit is hidden.
 
 ## ✨ Current Features
 
@@ -56,6 +66,12 @@ You defend your herd across escalating waves of alien rustlers — Little scouts
 - 📢 **Whistle mechanic** — **H** toggles *follow* ↔ *stay* from anywhere; she gallops to catch up, and "knows a shortcut" (teleports) if truly left behind
 - ⛰️ **Rolling terrain** — gentle hills, with CharacterController physics for player + horse and ground-snapping for aliens & wandering cattle
 
+### Camera, pause & browser builds (Packet 1.3)
+- 🎥 **Third-person camera** — over-the-shoulder follow cam with collision (never clips through the barn), smooth zoom-out while mounted, and a gallop FOV kick; **V** toggles back to first person any time
+- ⏸️ **Pause menu** — Esc/P/Start freezes the action mid-abduction; Resume / Settings / Restart / Quit
+- 🎛️ **Settings stub** — mouse sensitivity, invert Y, and master volume, persisted between sessions
+- 🌐 **WebGL pipeline** — one-click local browser builds + a GitHub Actions workflow that auto-deploys every merge to GitHub Pages ([guide](docs/WEBGL.md))
+
 ## 🚧 Development Status
 
 Development proceeds in self-contained **work packets** (see the [roadmap](docs/hillbilly_alien_shooter_roadmap.md)).
@@ -64,8 +80,8 @@ Development proceeds in self-contained **work packets** (see the [roadmap](docs/
 |---|---|---|---|
 | **1 — Foundation** | 1.1 | Project setup, core loop, shotgun, cattle, first wave | ✅ Done |
 | | 1.2 | Horse finding/mounting, riding physics, shoot-while-riding, follow/stay | ✅ Done |
-| | 1.3 | Third-person camera, input polish, pause menu | ⬜ Next |
-| **2 — Combat & Enemies** | 2.1 | Little & Medium aliens, drops, UFO abduction beams | ⬜ |
+| | 1.3 | Third-person camera, pause menu + settings, WebGL builds | ✅ Done |
+| **2 — Combat & Enemies** | 2.1 | Little & Medium aliens, drops, UFO abduction beams | ⬜ Next |
 | | 2.2 | Large aliens, Brutes, dish UFOs, health bars | ⬜ |
 | | 2.3 | Alien tech upgrade system (ammo, reload, explosive, rapid fire…) | ⬜ |
 | **3 — Progression** | 3.1 | Escalating farm waves, rest periods, progression gate | ⬜ |
@@ -101,6 +117,8 @@ Full instructions (with troubleshooting) in **[SETUP.md](SETUP.md)** — short v
 | Whistle — follow ↔ stay | H | D-pad up |
 | Ride: throttle / brake–reverse | W / S | Left stick ↑ / ↓ |
 | Ride: steer | A / D | Left stick ← / → |
+| Toggle camera (third ↔ first person) | V | Right stick click |
+| Pause / resume | Esc or P | Start |
 | Restart after win/lose | R or Enter | — |
 
 ## 📖 Gameplay Guide
@@ -120,18 +138,22 @@ Assets/_Project/
 └── Scripts/
     ├── Core/              GameState, GameEvents (event bus), GameManager, IInteractable
     ├── Combat/            IDamageable, DamageInfo, Health
-    ├── Player/            PlayerInputHandler, PlayerController, PlayerInteraction, PlayerHealth
+    ├── Player/            PlayerInputHandler, PlayerController, PlayerInteraction,
+    │                      CameraRig (3rd/1st person), PlayerHealth
     ├── Horse/             HorseController      (Idle/Follow/Stay/Mounted + riding physics)
     ├── Weapons/           Shotgun              (hitscan pellets, ammo, reload)
     ├── Enemies/           AlienEnemy           (hunt → beam → melee AI)
     ├── Cattle/            Cattle               (abduction meter, registry, tallies)
     ├── Waves/             WaveSpawner
     ├── Data/              WeaponData, EnemyData, WaveData, HorseData   (SO definitions)
-    ├── UI/                HUDController        (self-building, event-driven)
+    ├── UI/                HUDController, PauseMenu   (self-building, event-driven)
     ├── Utils/             LowPolyFactory, GameLayers, GroundSnap
-    └── Editor/            FarmSceneBuilder     (Tools ▸ Hillbilly ▸ Build Farm Scene)
+    └── Editor/            FarmSceneBuilder, WebGLBuilder   (Tools ▸ Hillbilly ▸ …)
+Packages/, ProjectSettings/                      (CI-only Unity project scaffolding)
+.github/workflows/                               (WebGL build & Pages deploy, license helper)
 docs/
 ├── hillbilly_alien_shooter_roadmap.md           (full development roadmap)
+├── WEBGL.md                                     (browser build & deploy guide)
 └── progress/                                    (per-packet progress reports)
 SETUP.md                                         (detailed setup, testing & troubleshooting)
 ```

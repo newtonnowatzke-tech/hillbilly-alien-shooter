@@ -42,6 +42,7 @@ namespace HillbillyAlienShooter.Weapons
         private PlayerInputHandler _input;
         private float _nextFireTime;
         private LineRenderer _tracer;
+        private bool _gameActive = true;
 
         private void Awake()
         {
@@ -66,18 +67,34 @@ namespace HillbillyAlienShooter.Weapons
             GameEvents.RaiseAmmoChanged(Magazine, Reserve);
         }
 
-        /// <summary>Lazily grabs the main camera as the aim/muzzle source if unset.</summary>
+        /// <summary>
+        /// Aim from the head-height camera PIVOT rather than the camera itself:
+        /// they share orientation, but in third person the camera sits behind the
+        /// player — raycasting from it could shoot things between the camera and
+        /// the hillbilly's back. The pivot is immune to that.
+        /// </summary>
         private void ResolveAimSource()
         {
-            if (aimSource == null && Camera.main != null)
-                aimSource = Camera.main.transform;
+            if (aimSource == null)
+            {
+                var pc = GetComponentInParent<PlayerController>();
+                if (pc != null && pc.CameraPivot != null) aimSource = pc.CameraPivot;
+                else if (Camera.main != null) aimSource = Camera.main.transform;
+            }
             if (muzzle == null)
                 muzzle = aimSource;
         }
 
+        private void OnEnable() => GameEvents.GameStateChanged += OnGameStateChanged;
+        private void OnDisable() => GameEvents.GameStateChanged -= OnGameStateChanged;
+
+        // No firing from the pause menu / end screens (a Resume click must not
+        // discharge the shotgun into whatever's behind the button).
+        private void OnGameStateChanged(GameState state) => _gameActive = state == GameState.Playing;
+
         private void Update()
         {
-            if (_input == null) return;
+            if (!_gameActive || _input == null) return;
 
             if (_input.ReloadPressedThisFrame)
                 TryReload();

@@ -32,6 +32,9 @@ namespace HillbillyAlienShooter.Core
             }
             Instance = this;
 
+            // A previous session may have ended (or been reloaded) while paused.
+            Time.timeScale = 1f;
+
             // Runs before any OnEnable this scene, so we start from a clean slate.
             GameEvents.ResetAll();
             HillbillyAlienShooter.Livestock.Cattle.ResetTallies();
@@ -107,8 +110,32 @@ namespace HillbillyAlienShooter.Core
             GameEvents.RaiseGameStateChanged(next);
         }
 
+        // -------------------------------------------------------------------
+        // Pause (driven by the PauseMenu UI)
+        // -------------------------------------------------------------------
+        public void TogglePause()
+        {
+            if (State == GameState.Playing) Pause();
+            else if (State == GameState.Paused) Resume();
+        }
+
+        public void Pause()
+        {
+            if (State != GameState.Playing) return;
+            Time.timeScale = 0f;
+            SetState(GameState.Paused);
+        }
+
+        public void Resume()
+        {
+            if (State != GameState.Paused) return;
+            Time.timeScale = 1f;
+            SetState(GameState.Playing);
+        }
+
         public void Restart()
         {
+            Time.timeScale = 1f; // never carry a paused clock into the fresh scene
             // Statics get reset in Awake of the freshly-loaded scene.
             Scene active = SceneManager.GetActiveScene();
             SceneManager.LoadScene(active.buildIndex);
