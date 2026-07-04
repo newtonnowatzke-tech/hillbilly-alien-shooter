@@ -54,21 +54,74 @@ namespace HillbillyAlienShooter.EditorTools
         {
             // --- Data assets first, so we can wire them into components ---
             EnsureFolders();
-            EnemyData enemyData = CreateOrLoad<EnemyData>($"{DataFolder}/EnemyData_LittleAlien.asset", d =>
+
+            // Little Alien: cattle rustler with an "annoying path" weave. The
+            // weave/drop fields are (re)applied even to pre-existing assets since
+            // they were introduced in Packet 2.1.
+            EnemyData littleAlien = CreateOrLoad<EnemyData>($"{DataFolder}/EnemyData_LittleAlien.asset", d =>
             {
                 d.displayName = "Little Alien";
             });
+            littleAlien.role = EnemyData.EnemyRole.Rustler;
+            littleAlien.weaveAmplitude = 1.2f;
+            littleAlien.weaveFrequency = 0.7f;
+            littleAlien.techDropChance = 0.25f;
+            littleAlien.techAmount = 1;
+            EditorUtility.SetDirty(littleAlien);
+
+            // Medium Alien: faster hunter that flanks the hillbilly.
+            EnemyData mediumAlien = CreateOrLoad<EnemyData>($"{DataFolder}/EnemyData_MediumAlien.asset", d =>
+            {
+                d.displayName = "Medium Alien";
+                d.role = EnemyData.EnemyRole.Hunter;
+                d.bodyTint = new Color(0.8f, 0.4f, 1f); // menacing violet
+                d.bodyScale = 1.3f;
+                d.maxHealth = 45f;
+                d.moveSpeed = 4.6f;
+                d.weaveAmplitude = 0.5f;   // slight jink even while flanking
+                d.weaveFrequency = 1.1f;
+                d.meleeRange = 1.8f;
+                d.meleeDamage = 6f;        // light...
+                d.meleeCooldown = 0.8f;    // ...but quick
+                d.flankOffset = 5f;
+                d.flankCloseRange = 4.5f;
+                d.scoreValue = 250;
+                d.techDropChance = 0.45f;
+                d.techAmount = 1;
+            });
+
+            // Scout Saucer: hovers above the herd and beams cows from the air.
+            EnemyData scoutSaucer = CreateOrLoad<EnemyData>($"{DataFolder}/EnemyData_ScoutSaucer.asset", d =>
+            {
+                d.displayName = "Scout Saucer";
+                d.role = EnemyData.EnemyRole.Saucer;
+                d.bodyTint = new Color(0.4f, 1f, 0.75f); // glowing canopy green
+                d.maxHealth = 120f;
+                d.moveSpeed = 4f;
+                d.hoverHeight = 9f;
+                d.hoverBobAmplitude = 0.4f;
+                d.beamLockRadius = 1.6f;
+                d.abductRatePerSecond = 0.6f; // faster than ground rustlers — priority target!
+                d.scoreValue = 500;
+                d.techDropChance = 1f;        // shooting down a saucer always pays
+                d.techAmount = 3;
+            });
+
             WeaponData weaponData = CreateOrLoad<WeaponData>($"{DataFolder}/WeaponData_Shotgun.asset", _ => { });
+
+            // Wave 1 composition is authored here and refreshed on every rebuild
+            // so new enemy types flow into existing projects. (Tune counts freely
+            // in the Inspector afterwards — until the next scene rebuild.)
             WaveData waveData = CreateOrLoad<WaveData>($"{DataFolder}/WaveData_Wave1.asset", w =>
             {
                 w.waveName = "Wave 1";
-                w.spawns = new System.Collections.Generic.List<WaveData.SpawnEntry>
-                {
-                    new WaveData.SpawnEntry { enemy = enemyData, count = 8 }
-                };
             });
-            // Make sure the wave references the (possibly pre-existing) enemy asset.
-            if (waveData.spawns.Count > 0) waveData.spawns[0].enemy = enemyData;
+            waveData.spawns = new System.Collections.Generic.List<WaveData.SpawnEntry>
+            {
+                new WaveData.SpawnEntry { enemy = littleAlien, count = 8 },
+                new WaveData.SpawnEntry { enemy = mediumAlien, count = 4 },
+                new WaveData.SpawnEntry { enemy = scoutSaucer, count = 1 },
+            };
             EditorUtility.SetDirty(waveData);
 
             HorseData horseData = CreateOrLoad<HorseData>($"{DataFolder}/HorseData_Buttercup.asset", h =>

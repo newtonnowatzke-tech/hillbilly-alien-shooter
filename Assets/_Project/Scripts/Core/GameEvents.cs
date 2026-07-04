@@ -43,6 +43,10 @@ namespace HillbillyAlienShooter.Core
         public static event Action<Vector3, int> EnemyKilled;
         public static void RaiseEnemyKilled(Vector3 position, int scoreValue) => EnemyKilled?.Invoke(position, scoreValue);
 
+        /// <summary>Running alien-tech total changed (pickups collected / tech spent). Arg: new total.</summary>
+        public static event Action<int> TechChanged;
+        public static void RaiseTechChanged(int total) => TechChanged?.Invoke(total);
+
         // ---------------------------------------------------------------
         // Cattle
         // ---------------------------------------------------------------
@@ -100,6 +104,7 @@ namespace HillbillyAlienShooter.Core
             WaveCompleted = null;
             EnemyCountChanged = null;
             EnemyKilled = null;
+            TechChanged = null;
             CattleCountsChanged = null;
             PlayerHealthChanged = null;
             PlayerDied = null;

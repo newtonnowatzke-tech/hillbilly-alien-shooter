@@ -83,6 +83,19 @@ and aliens shamble in from the tree line to rustle your cattle.
 
 ---
 
+## Testing checklist (Packet 2.1 — enemies & tech)
+
+- [ ] **Weaving scouts:** Little Aliens sway side-to-side on approach — noticeably harder to hit than 1.x.
+- [ ] **Medium hunters:** violet, ~1.3× bigger, faster; they curve out to your side before charging; two at once come from *different* sides.
+- [ ] **Light attacks:** a Medium in melee range lands quick small hits (HP ticks down ~6 at a time).
+- [ ] **Saucer arrives:** after the ground spawns, one dish UFO glides in at altitude with rim lights + belly glow.
+- [ ] **Air abduction:** the saucer parks over a cow and a wide cone beam lifts it — faster than ground rustlers.
+- [ ] **Shooting it down:** the saucer dips when hit; on death it spins, crashes, and drops tech at the crash site.
+- [ ] **Tech drops:** some dead aliens leave glowing cyan shards (bobbing, spinning, lit).
+- [ ] **Magnet collect:** walk or ride within ~3 m — the shard flies to you; "ALIEN TECH" (top-right) increments (+3 from a saucer).
+- [ ] **Wave completion:** the wave only completes once ground aliens **and** the saucer are dead.
+- [ ] **Restart:** tech counter resets to 0 on restart.
+
 ## Testing checklist (Packet 1.3 — camera & controls)
 
 - [ ] **Third person default:** game starts over-the-shoulder; the hillbilly capsule and shotgun tracers are visible.
@@ -164,10 +177,12 @@ Player/    PlayerInputHandler (New Input System), PlayerController (+mount/dismo
            PlayerInteraction (proximity prompts), CameraRig (third/first person), PlayerHealth
 Horse/     HorseController (Idle/Follow/Stay/Mounted state machine + riding physics)
 Weapons/   Shotgun (hitscan spread + ammo/reload — works on horseback)
-Enemies/   AlienEnemy (hunt cow → beam → melee fallback)
+Enemies/   AlienEnemy (Rustler weave / Hunter flank roles), UfoEnemy (air abduction),
+           EnemyRegistry (shared alive count)
+Pickups/   TechPickup (magnet-collect tech shards → TechInventory)
 Cattle/    Cattle (abduction meter + terrain-aware wander)      [namespace: Livestock]
-Waves/     WaveSpawner (drip-spawn one wave)
-Data/      WeaponData, EnemyData, WaveData, HorseData (ScriptableObjects)
+Waves/     WaveSpawner (drip-spawn one wave, role-aware)
+Data/      WeaponData, EnemyData (roles), WaveData, HorseData (ScriptableObjects)
 UI/        HUDController, PauseMenu (both self-building, event-driven)
 Utils/     LowPolyFactory (all placeholder primitives), GameLayers, GroundSnap
 Editor/    FarmSceneBuilder (scene generator), WebGLBuilder (browser builds — see docs/WEBGL.md)
