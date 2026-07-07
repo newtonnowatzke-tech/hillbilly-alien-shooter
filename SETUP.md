@@ -71,6 +71,7 @@ and aliens shamble in from the tree line to rustle your cattle.
 | Reload | R | West button (X/□) |
 | Interact (mount/dismount horse) | E | North button (Y/△) |
 | Whistle (horse: follow ↔ stay) | H | D-pad up |
+| Jury-rig wild upgrade (5 tech) | Q | Left shoulder |
 | Ride: throttle / brake / back up | W / S | Left stick ↑ / ↓ |
 | Ride: steer | A / D | Left stick ← / → |
 | Toggle camera (third ↔ first person) | V | Right stick click |
@@ -82,6 +83,21 @@ and aliens shamble in from the tree line to rustle your cattle.
 > sideways at full gallop. That's the intended cattle-defense power move.
 
 ---
+
+## Testing checklist (Packet 2.3 — alien tech upgrades)
+
+- [ ] **Start-of-wave hint:** a toast explains "[Q] jury-rig a wild upgrade — 5 tech a roll".
+- [ ] **Broke roll:** pressing Q with < 5 tech shows "Need 5 tech..." and spends nothing.
+- [ ] **Wild roll:** with ≥ 5 tech, Q deducts 5 and lands a random upgrade with a flavor toast.
+- [ ] **Extra Shells:** reserve jumps +12 instantly (ammo counter updates).
+- [ ] **Greased Lightnin':** reload visibly ~2× faster while the timer runs.
+- [ ] **Hair Trigger:** you can pump shells noticeably faster while active.
+- [ ] **Boomstick Rounds:** pellet impacts detonate — a blast ring at the impact point damages nearby enemies (never you, the horse, or cows).
+- [ ] **Slot timers:** each timed upgrade appears under the tech tally counting down live (e.g. "BOOMSTICK ROUNDS 12s").
+- [ ] **Stacking:** rolling the same upgrade again shows "×2", extends its clock, and Boomstick's ring grows.
+- [ ] **Moonshine Timer:** with buffs running, every countdown jumps +8 s; with nothing running you get the sad-whiff toast.
+- [ ] **Expiry:** when a timer hits 0 the effect stops (reload/fire rate return to normal) and the slot line disappears.
+- [ ] **Pause:** upgrade timers freeze while paused, resume after.
 
 ## Testing checklist (Packet 2.2 — heavies, war saucers & health bars)
 
@@ -163,6 +179,8 @@ Select the assets in `Assets/_Project/Data/` and tweak in the Inspector:
 - **WaveData_Wave1** — enemy count, spawn interval, start delay.
 - **HorseData_Buttercup** — gallop speed, acceleration/braking, turn rates, follow
   distances, teleport failsafe distance, coat/mane/saddle colors.
+- **UpgradeData_*** — five wild-pool upgrades: effect amount, duration, max stacks,
+  explosion damage, pool weight, and the toast flavor line.
 
 The `GameManager` has **Cattle Needed To Win** (default 1). The `WaveSpawner` has a
 **Spawn Ring Radius** and a gizmo showing where aliens come from.
@@ -189,14 +207,16 @@ Combat/    IDamageable, DamageInfo, Health, WeakPoint (dome bonus damage), HitFl
 Player/    PlayerInputHandler (New Input System), PlayerController (+mount/dismount),
            PlayerInteraction (proximity prompts), CameraRig (third/first person), PlayerHealth
 Horse/     HorseController (Idle/Follow/Stay/Mounted state machine + riding physics)
-Weapons/   Shotgun (hitscan spread + ammo/reload — works on horseback)
+Weapons/   Shotgun (hitscan spread + ammo/reload + explosive rounds — works on horseback),
+           WeaponUpgradeController (Q = wild roll, stacking buff timers)
 Enemies/   AlienEnemy (Rustler/Hunter roles, Swipe/Smash attacks), UfoEnemy (abduction +
            support fire), PlasmaBolt, EnemyRegistry (shared alive count)
 Pickups/   TechPickup (magnet-collect tech shards → TechInventory)
 Effects/   ShockwaveFx (Brute slam ring)
 Cattle/    Cattle (abduction meter + terrain-aware wander)      [namespace: Livestock]
 Waves/     WaveSpawner (drip-spawn one wave, role-aware)
-Data/      WeaponData, EnemyData (roles + attack styles), WaveData, HorseData (ScriptableObjects)
+Data/      WeaponData, EnemyData (roles + attack styles), WaveData, HorseData,
+           UpgradeData (wild pool entries) — all ScriptableObjects
 UI/        HUDController, PauseMenu, EnemyHealthBar (all self-building, event-driven)
 Utils/     LowPolyFactory (all placeholder primitives), GameLayers, GroundSnap
 Editor/    FarmSceneBuilder (scene generator), WebGLBuilder (browser builds — see docs/WEBGL.md)

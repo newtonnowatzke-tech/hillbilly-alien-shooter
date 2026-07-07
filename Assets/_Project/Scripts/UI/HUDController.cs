@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+using System.Text;
 using UnityEngine;
 using UnityEngine.UI;
 using HillbillyAlienShooter.Core;
@@ -25,9 +27,17 @@ namespace HillbillyAlienShooter.UI
         private Text _promptText;   // "[E] Ride Buttercup"
         private Text _horseText;    // "Buttercup: followin' you"
         private Text _techText;     // "ALIEN TECH: 3"
+        private Text _upgradeText;  // active upgrade slots + countdowns
+        private Text _toastText;    // "BOOMSTICK ROUNDS! Now THAT'S a boomstick!"
 
         private Font _font;
         private float _bannerHideTime;
+        private float _toastHideTime;
+
+        // Local mirror of active upgrades: name -> (expiry time, stacks).
+        // The HUD counts down between UpgradeChanged events on its own.
+        private readonly List<(string name, float expiry, int stacks)> _upgrades =
+            new List<(string, float, int)>();
 
         private void Awake()
         {
@@ -47,6 +57,9 @@ namespace HillbillyAlienShooter.UI
             GameEvents.InteractPromptChanged += OnPrompt;
             GameEvents.HorseStateChanged += OnHorseState;
             GameEvents.TechChanged += OnTech;
+            GameEvents.UpgradeToast += OnUpgradeToast;
+            GameEvents.UpgradeChanged += OnUpgradeChanged;
+            GameEvents.UpgradeExpired += OnUpgradeExpired;
         }
 
         private void OnDisable()
@@ -60,12 +73,43 @@ namespace HillbillyAlienShooter.UI
             GameEvents.InteractPromptChanged -= OnPrompt;
             GameEvents.HorseStateChanged -= OnHorseState;
             GameEvents.TechChanged -= OnTech;
+            GameEvents.UpgradeToast -= OnUpgradeToast;
+            GameEvents.UpgradeChanged -= OnUpgradeChanged;
+            GameEvents.UpgradeExpired -= OnUpgradeExpired;
         }
 
         private void Update()
         {
             if (_bannerText.enabled && Time.time >= _bannerHideTime)
                 _bannerText.enabled = false;
+
+            if (_toastText.enabled && Time.time >= _toastHideTime)
+                _toastText.enabled = false;
+
+            RefreshUpgradeList();
+        }
+
+        /// <summary>Redraws the active-upgrade slots with locally-ticked countdowns.</summary>
+        private void RefreshUpgradeList()
+        {
+            // Drop anything that ran out (safety net alongside UpgradeExpired).
+            _upgrades.RemoveAll(u => Time.time >= u.expiry);
+
+            if (_upgrades.Count == 0)
+            {
+                if (_upgradeText.enabled) _upgradeText.enabled = false;
+                return;
+            }
+
+            var sb = new StringBuilder();
+            foreach (var (name, expiry, stacks) in _upgrades)
+            {
+                sb.Append(name.ToUpperInvariant());
+                if (stacks > 1) sb.Append(" x").Append(stacks);
+                sb.Append("  ").Append(Mathf.CeilToInt(expiry - Time.time)).Append("s\n");
+            }
+            _upgradeText.text = sb.ToString();
+            _upgradeText.enabled = true;
         }
 
         // ---------------------------------------------------------------
@@ -101,6 +145,30 @@ namespace HillbillyAlienShooter.UI
         }
 
         private void OnTech(int total) => _techText.text = $"ALIEN TECH  {total}";
+
+        private void OnUpgradeToast(string message)
+        {
+            _toastText.text = message;
+            _toastText.enabled = true;
+            _toastHideTime = Time.time + 2.6f;
+        }
+
+        private void OnUpgradeChanged(string name, float remaining, int stacks)
+        {
+            float expiry = Time.time + remaining;
+            for (int i = 0; i < _upgrades.Count; i++)
+            {
+                if (_upgrades[i].name == name)
+                {
+                    _upgrades[i] = (name, expiry, stacks);
+                    return;
+                }
+            }
+            _upgrades.Add((name, expiry, stacks));
+        }
+
+        private void OnUpgradeExpired(string name) =>
+            _upgrades.RemoveAll(u => u.name == name);
 
         private void OnWaveStarted(int waveNumber)
         {
@@ -199,6 +267,17 @@ namespace HillbillyAlienShooter.UI
             _techText = MakeText(root, "TechText", new Vector2(1f, 1f), new Vector2(1f, 1f),
                 new Vector2(-30f, -24f), new Vector2(500f, 50f), 30, TextAnchor.UpperRight, new Color(0.5f, 1f, 1f));
             _techText.text = "ALIEN TECH  0";
+
+            // Active upgrade slots + countdowns, stacked under the tech tally.
+            _upgradeText = MakeText(root, "UpgradeText", new Vector2(1f, 1f), new Vector2(1f, 1f),
+                new Vector2(-30f, -68f), new Vector2(520f, 220f), 24, TextAnchor.UpperRight, new Color(1f, 0.85f, 0.35f));
+            _upgradeText.enabled = false;
+
+            // Upgrade toast: acquisition flavor / "need more tech", centre-low.
+            _toastText = MakeText(root, "ToastText", new Vector2(0.5f, 0.3f), new Vector2(0.5f, 0.5f),
+                Vector2.zero, new Vector2(1400f, 60f), 32, TextAnchor.MiddleCenter, new Color(0.6f, 1f, 0.6f));
+            _toastText.fontStyle = FontStyle.Bold;
+            _toastText.enabled = false;
         }
 
         private Text MakeText(Transform parent, string name, Vector2 anchorMin, Vector2 anchorMax,

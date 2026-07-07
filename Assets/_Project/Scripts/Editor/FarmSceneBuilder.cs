@@ -179,6 +179,54 @@ namespace HillbillyAlienShooter.EditorTools
 
             WeaponData weaponData = CreateOrLoad<WeaponData>($"{DataFolder}/WeaponData_Shotgun.asset", _ => { });
 
+            // --- The wild upgrade pool (Packet 2.3) ---
+            var upgradePool = new UpgradeData[]
+            {
+                CreateOrLoad<UpgradeData>($"{DataFolder}/UpgradeData_ExtraShells.asset", u =>
+                {
+                    u.displayName = "Extra Shells";
+                    u.flavor = "Found a box o' shells in the truck!";
+                    u.type = UpgradeData.UpgradeType.ExtraAmmo;
+                    u.amount = 12f;
+                    u.duration = 0f;
+                    u.weight = 1.2f; // ammo is the bread-and-butter roll
+                }),
+                CreateOrLoad<UpgradeData>($"{DataFolder}/UpgradeData_GreasedLightnin.asset", u =>
+                {
+                    u.displayName = "Greased Lightnin'";
+                    u.flavor = "Slicker'n a greased pig!";
+                    u.type = UpgradeData.UpgradeType.FastReload;
+                    u.amount = 0.45f;   // reload time multiplier
+                    u.duration = 20f;
+                }),
+                CreateOrLoad<UpgradeData>($"{DataFolder}/UpgradeData_BoomstickRounds.asset", u =>
+                {
+                    u.displayName = "Boomstick Rounds";
+                    u.flavor = "Now THAT'S a boomstick!";
+                    u.type = UpgradeData.UpgradeType.ExplosiveShells;
+                    u.amount = 2.2f;    // blast radius (m), +25%/stack
+                    u.explosionDamage = 10f;
+                    u.duration = 15f;
+                }),
+                CreateOrLoad<UpgradeData>($"{DataFolder}/UpgradeData_HairTrigger.asset", u =>
+                {
+                    u.displayName = "Hair Trigger";
+                    u.flavor = "Faster'n gossip at church!";
+                    u.type = UpgradeData.UpgradeType.RapidFire;
+                    u.amount = 0.45f;   // fire cooldown multiplier
+                    u.duration = 15f;
+                }),
+                CreateOrLoad<UpgradeData>($"{DataFolder}/UpgradeData_MoonshineTimer.asset", u =>
+                {
+                    u.displayName = "Moonshine Timer";
+                    u.flavor = "Time moves slower after moonshine.";
+                    u.type = UpgradeData.UpgradeType.DurationExtender;
+                    u.amount = 8f;      // seconds added to every running upgrade
+                    u.duration = 0f;
+                    u.weight = 0.7f;    // the gamble roll
+                }),
+            };
+
             // Wave 1 composition is authored here and refreshed on every rebuild
             // so new enemy types flow into existing projects. (Tune counts freely
             // in the Inspector afterwards — until the next scene rebuild.)
@@ -215,6 +263,8 @@ namespace HillbillyAlienShooter.EditorTools
             // --- Player ---
             var player = LowPolyFactory.BuildPlayer(new Vector3(0f, 0f, -6f));
             AssignObjectRef(player.GetComponent<HillbillyAlienShooter.Weapons.Shotgun>(), "weaponData", weaponData);
+            AssignObjectList(player.GetComponent<HillbillyAlienShooter.Weapons.WeaponUpgradeController>(),
+                "upgradePool", upgradePool);
 
             // --- Buttercup, waitin' by the barn ---
             var horse = LowPolyFactory.BuildHorse(horseData, new Vector3(5.5f, 0f, 11f));
@@ -329,6 +379,20 @@ namespace HillbillyAlienShooter.EditorTools
                 prop.objectReferenceValue = value;
                 so.ApplyModifiedPropertiesWithoutUndo();
             }
+        }
+
+        /// <summary>Fills a private [SerializeField] List/array of object references.</summary>
+        private static void AssignObjectList(Object component, string fieldName, Object[] values)
+        {
+            if (component == null || values == null) return;
+            var so = new SerializedObject(component);
+            var prop = so.FindProperty(fieldName);
+            if (prop == null || !prop.isArray) return;
+
+            prop.arraySize = values.Length;
+            for (int i = 0; i < values.Length; i++)
+                prop.GetArrayElementAtIndex(i).objectReferenceValue = values[i];
+            so.ApplyModifiedPropertiesWithoutUndo();
         }
 
         private static void EnsureFolders()
