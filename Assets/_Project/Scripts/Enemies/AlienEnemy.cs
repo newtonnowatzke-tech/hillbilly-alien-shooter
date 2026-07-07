@@ -7,22 +7,21 @@ using HillbillyAlienShooter.Data;
 namespace HillbillyAlienShooter.Enemies
 {
     /// <summary>
-    /// The "Little Alien" scout for Packet 1.1. Behaviour:
-    ///  1. Find the nearest cow and shamble toward it.
-    ///  2. In grab range, fire an abduction beam that fills the cow's meter.
-    ///  3. If no cattle remain, charge the hillbilly and melee him.
-    ///  4. On death: score, squash, and despawn.
+    /// Ground alien, role-driven by <see cref="EnemyData"/> (Packet 2.1):
     ///
-    /// Moves kinematically over the flat farm (no NavMesh needed for 1.1). A
-    /// static <see cref="ActiveCount"/> lets the WaveSpawner know when the wave is
-    /// clear without polling the scene.
+    ///  Rustler (Little Alien) — finds the nearest cow, weaves toward it on an
+    ///  "annoying path" (data-tuned sine sway), beams it up in grab range, and
+    ///  only bothers the hillbilly once no cattle remain.
+    ///
+    ///  Hunter (Medium Alien) — faster and meaner: curves toward the player's
+    ///  FLANK while far, then charges straight in for quick light melee swipes.
+    ///
+    /// Moves kinematically (GroundSnap handles hills). Registers with
+    /// <see cref="EnemyRegistry"/> so the WaveSpawner knows when the wave is clear.
     /// </summary>
     [RequireComponent(typeof(Health))]
     public class AlienEnemy : MonoBehaviour
     {
-        /// <summary>Number of aliens currently alive in the scene.</summary>
-        public static int ActiveCount { get; private set; }
-
         [Header("Data (optional — falls back to defaults)")]
         [SerializeField] private EnemyData data;
 
@@ -35,6 +34,10 @@ namespace HillbillyAlienShooter.Enemies
         private LineRenderer _beam;
         private Vector3 _baseScale;
         private Coroutine _squashRoutine;
+        private HitFlash _hitFlash;
+        private float _weavePhase;   // per-alien offset so scouts don't sway in sync
+        private int _flankSide;      // -1 or +1, chosen once per hunter
+        private bool _smashing;      // Brute wind-up in progress: rooted in place
 
         private void Awake()
         {
@@ -42,27 +45,25 @@ namespace HillbillyAlienShooter.Enemies
             if (data == null) data = EnemyData.CreateDefault();
             _health.SetMaxHealth(data.maxHealth);
             _baseScale = transform.localScale;
+            _hitFlash = GetComponent<HitFlash>();
+            _weavePhase = Random.Range(0f, Mathf.PI * 2f);
+            _flankSide = Random.value < 0.5f ? -1 : 1;
             SetupBeam();
         }
 
         private void OnEnable()
         {
-            ActiveCount++;
-            GameEvents.RaiseEnemyCountChanged(ActiveCount);
+            EnemyRegistry.Register();
             _health.Damaged += OnDamaged;
             _health.Died += OnDied;
         }
 
         private void OnDisable()
         {
-            ActiveCount = Mathf.Max(0, ActiveCount - 1);
-            GameEvents.RaiseEnemyCountChanged(ActiveCount);
+            EnemyRegistry.Unregister();
             _health.Damaged -= OnDamaged;
             _health.Died -= OnDied;
         }
-
-        /// <summary>Reset the shared counter (called by GameManager on scene start).</summary>
-        public static void ResetCount() => ActiveCount = 0;
 
         /// <summary>Assign tuning data at spawn time (used by the WaveSpawner).</summary>
         public void Configure(EnemyData enemyData)
@@ -80,9 +81,16 @@ namespace HillbillyAlienShooter.Enemies
 
         private void Update()
         {
-            if (_dead) return;
+            if (_dead || _smashing) return; // a winding-up Brute is rooted
 
-            _targetCow = FindNearestCow();
+            if (data.role == EnemyData.EnemyRole.Hunter)
+            {
+                HuntPlayerFlanking();
+                return;
+            }
+
+            // Rustler: cattle first, hillbilly as a last resort.
+            _targetCow = HillbillyAlienShooter.Livestock.Cattle.FindNearest(transform.position);
 
             if (_targetCow != null)
                 HuntCow();
@@ -120,30 +128,122 @@ namespace HillbillyAlienShooter.Enemies
             float dist = FlatDistance(transform.position, target);
 
             if (dist > data.meleeRange)
-            {
                 MoveTowards(target);
+            else
+                TryMelee(target);
+        }
+
+        /// <summary>
+        /// Hunter approach: while far, aim at a point offset to the player's side
+        /// (a cheap flank — pairs of hunters naturally pincer since each rolls its
+        /// own side); inside flankCloseRange, drop the act and charge straight in.
+        /// </summary>
+        private void HuntPlayerFlanking()
+        {
+            SetBeam(false, transform.position);
+            if (_player == null) return;
+
+            Vector3 playerPos = _player.position;
+            float dist = FlatDistance(transform.position, playerPos);
+
+            if (dist <= data.meleeRange)
+            {
+                TryMelee(playerPos);
+            }
+            else if (dist <= data.flankCloseRange)
+            {
+                MoveTowards(playerPos); // committed charge
             }
             else
             {
-                FaceFlat(target);
-                if (Time.time >= _nextMeleeTime)
+                Vector3 toPlayer = playerPos - transform.position;
+                toPlayer.y = 0f;
+                Vector3 side = Vector3.Cross(Vector3.up, toPlayer.normalized) * _flankSide;
+                MoveTowards(playerPos + side * data.flankOffset);
+            }
+        }
+
+        private void TryMelee(Vector3 target)
+        {
+            FaceFlat(target);
+            if (Time.time < _nextMeleeTime) return;
+            _nextMeleeTime = Time.time + data.meleeCooldown;
+
+            if (data.attackStyle == EnemyData.AttackStyle.Smash)
+            {
+                StartCoroutine(SmashRoutine());
+                return;
+            }
+
+            // Swipe: instant hit.
+            var dmg = _player.GetComponentInChildren<IDamageable>();
+            if (dmg != null && dmg.IsAlive)
+            {
+                Vector3 dir = (target - transform.position).normalized;
+                dmg.TakeDamage(new DamageInfo(data.meleeDamage, target, dir, source: gameObject));
+            }
+        }
+
+        /// <summary>
+        /// Brute ground slam: a readable crouch telegraph (the dodge window),
+        /// then an AoE hit + shockwave ring. The Brute is rooted throughout, so
+        /// clearing smashRadius during the wind-up is a guaranteed dodge.
+        /// </summary>
+        private IEnumerator SmashRoutine()
+        {
+            _smashing = true;
+
+            // Telegraph: crouch down and bulk out.
+            Vector3 crouch = Vector3.Scale(_baseScale, new Vector3(1.3f, 0.55f, 1.3f));
+            float t = 0f;
+            while (t < 1f && !_dead)
+            {
+                t += Time.deltaTime / Mathf.Max(0.05f, data.smashWindup);
+                transform.localScale = Vector3.Lerp(_baseScale, crouch, t);
+                yield return null;
+            }
+
+            if (!_dead)
+            {
+                // SLAM. Pop back up and punish anyone still inside the ring.
+                transform.localScale = _baseScale;
+                HillbillyAlienShooter.Utils.LowPolyFactory.BuildShockwave(
+                    transform.position, data.smashRadius, 0.45f);
+
+                if (_player != null && FlatDistance(transform.position, _player.position) <= data.smashRadius)
                 {
-                    _nextMeleeTime = Time.time + data.meleeCooldown;
                     var dmg = _player.GetComponentInChildren<IDamageable>();
                     if (dmg != null && dmg.IsAlive)
                     {
-                        Vector3 dir = (target - transform.position).normalized;
-                        dmg.TakeDamage(new DamageInfo(data.meleeDamage, target, dir, source: gameObject));
+                        Vector3 dir = (_player.position - transform.position).normalized;
+                        dmg.TakeDamage(new DamageInfo(data.meleeDamage, _player.position, dir,
+                            force: 8f, source: gameObject));
                     }
                 }
             }
+
+            _smashing = false;
         }
 
         private void MoveTowards(Vector3 worldTarget)
         {
             Vector3 flatTarget = new Vector3(worldTarget.x, transform.position.y, worldTarget.z);
+
+            // "Annoying paths": sway sideways across the approach line so buckshot
+            // has to be led. Amplitude/frequency come from data (0 = straight).
+            if (data.weaveAmplitude > 0.01f)
+            {
+                Vector3 dir = flatTarget - transform.position;
+                if (dir.sqrMagnitude > 0.01f)
+                {
+                    Vector3 right = Vector3.Cross(Vector3.up, dir.normalized);
+                    float sway = Mathf.Sin(Time.time * data.weaveFrequency * Mathf.PI * 2f + _weavePhase);
+                    flatTarget += right * (sway * data.weaveAmplitude);
+                }
+            }
+
             transform.position = Vector3.MoveTowards(transform.position, flatTarget, data.moveSpeed * Time.deltaTime);
-            FaceFlat(worldTarget);
+            FaceFlat(flatTarget);
         }
 
         private void FaceFlat(Vector3 worldTarget)
@@ -154,27 +254,17 @@ namespace HillbillyAlienShooter.Enemies
                 transform.rotation = Quaternion.Slerp(transform.rotation, Quaternion.LookRotation(dir), 10f * Time.deltaTime);
         }
 
-        private HillbillyAlienShooter.Livestock.Cattle FindNearestCow()
-        {
-            var list = HillbillyAlienShooter.Livestock.Cattle.Alive;
-            HillbillyAlienShooter.Livestock.Cattle nearest = null;
-            float best = float.MaxValue;
-            for (int i = 0; i < list.Count; i++)
-            {
-                var cow = list[i];
-                if (cow == null) continue;
-                float d = FlatSqrDistance(transform.position, cow.transform.position);
-                if (d < best) { best = d; nearest = cow; }
-            }
-            return nearest;
-        }
-
         // -------------------------------------------------------------------
         // Damage / death juice
         // -------------------------------------------------------------------
         private void OnDamaged(DamageInfo info)
         {
             if (_dead) return;
+            _hitFlash?.Flash();
+
+            // Don't fight the smash telegraph over the transform's scale.
+            if (_smashing) return;
+
             if (_squashRoutine != null) StopCoroutine(_squashRoutine);
             _squashRoutine = StartCoroutine(SquashRoutine());
         }
@@ -199,6 +289,12 @@ namespace HillbillyAlienShooter.Enemies
             _dead = true;
             SetBeam(false, transform.position);
             GameEvents.RaiseEnemyKilled(transform.position, data.scoreValue);
+
+            // Roll the tech drop while the corpse is still warm.
+            if (Random.value < data.techDropChance)
+                HillbillyAlienShooter.Utils.LowPolyFactory.BuildTechPickup(
+                    transform.position + Vector3.up * 0.6f, data.techAmount);
+
             StartCoroutine(DeathRoutine());
         }
 
@@ -251,12 +347,6 @@ namespace HillbillyAlienShooter.Enemies
         {
             a.y = 0f; b.y = 0f;
             return Vector3.Distance(a, b);
-        }
-
-        private static float FlatSqrDistance(Vector3 a, Vector3 b)
-        {
-            a.y = 0f; b.y = 0f;
-            return (a - b).sqrMagnitude;
         }
     }
 }

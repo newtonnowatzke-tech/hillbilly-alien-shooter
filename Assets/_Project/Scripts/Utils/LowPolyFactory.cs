@@ -202,13 +202,26 @@ namespace HillbillyAlienShooter.Utils
         // Aliens
         // -----------------------------------------------------------------
 
+        /// <summary>
+        /// Role-based dispatch: Saucers get a hovering dish, everything else a
+        /// ground alien. Spawners call this and never care about enemy classes.
+        /// </summary>
+        public static GameObject BuildEnemy(EnemyData data, Vector3 groundPos)
+        {
+            if (data != null && data.role == EnemyData.EnemyRole.Saucer)
+                return BuildUfo(data, groundPos);
+            return BuildAlien(data, groundPos);
+        }
+
         public static GameObject BuildAlien(EnemyData data, Vector3 pos)
         {
             if (data == null) data = EnemyData.CreateDefault();
 
-            // Root origin at feet.
+            // Root origin at feet. Scale applied BEFORE components are added so
+            // AlienEnemy's Awake captures the final size as its squash baseline.
             var root = new GameObject("Alien_" + data.displayName);
             root.transform.position = pos;
+            root.transform.localScale = Vector3.one * Mathf.Max(0.3f, data.bodyScale);
 
             var bodyMat = MakeMaterial(data.bodyTint, 0.35f);
             var eyeMat = MakeMaterial(AlienEye);
@@ -232,6 +245,143 @@ namespace HillbillyAlienShooter.Utils
             var alien = root.AddComponent<AlienEnemy>();
             alien.Configure(data);
             root.AddComponent<GroundSnap>(); // hug the hills while shambling
+            root.AddComponent<HitFlash>();
+
+            var bar = root.AddComponent<HillbillyAlienShooter.UI.EnemyHealthBar>();
+            bar.Configure(1.9f * data.bodyScale, 0.7f + 0.35f * data.bodyScale);
+            return root;
+        }
+
+        /// <summary>Dish-shaped scout saucer, spawned at hover altitude above <paramref name="groundPos"/>.</summary>
+        public static GameObject BuildUfo(EnemyData data, Vector3 groundPos)
+        {
+            if (data == null) data = EnemyData.CreateDefault();
+
+            var root = new GameObject("UFO_" + data.displayName);
+            root.transform.position = new Vector3(groundPos.x, data.hoverHeight, groundPos.z);
+
+            var hull = MakeMaterial(new Color(0.5f, 0.53f, 0.6f), 0.65f);   // brushed saucer metal
+            var domeMat = MakeMaterial(data.bodyTint, 0.5f);                 // glowing canopy
+            var darkMat = MakeMaterial(new Color(0.2f, 0.2f, 0.25f), 0.3f);
+
+            // Dish + canopy + belly. The dome gets its OWN collider (weak point);
+            // the dish hitbox below is a flat box so it doesn't swallow the dome.
+            Prim(PrimitiveType.Sphere, root.transform, "Dish", Vector3.zero, new Vector3(3.2f, 0.7f, 3.2f), hull, collider: false);
+            var dome = Prim(PrimitiveType.Sphere, root.transform, "Dome", new Vector3(0f, 0.45f, 0f), new Vector3(1.3f, 1.05f, 1.3f), domeMat, collider: true);
+            Prim(PrimitiveType.Sphere, root.transform, "Belly", new Vector3(0f, -0.3f, 0f), new Vector3(1.0f, 0.4f, 1.0f), darkMat, collider: false);
+
+            // Ring of rim lights for that classic saucer look.
+            var rimA = MakeMaterial(new Color(1f, 0.9f, 0.4f), 0.8f);
+            var rimB = MakeMaterial(new Color(0.4f, 1f, 0.9f), 0.8f);
+            const int rimCount = 6;
+            for (int i = 0; i < rimCount; i++)
+            {
+                float a = (i / (float)rimCount) * Mathf.PI * 2f;
+                var lightPos = new Vector3(Mathf.Cos(a) * 1.45f, 0.02f, Mathf.Sin(a) * 1.45f);
+                Prim(PrimitiveType.Sphere, root.transform, "RimLight",
+                    lightPos, Vector3.one * 0.22f, i % 2 == 0 ? rimA : rimB, collider: false);
+            }
+
+            // Soft glow pooling on the pasture beneath it.
+            var glowGo = new GameObject("BellyGlow");
+            glowGo.transform.SetParent(root.transform, false);
+            glowGo.transform.localPosition = new Vector3(0f, -0.4f, 0f);
+            var glow = glowGo.AddComponent<Light>();
+            glow.type = LightType.Point;
+            glow.color = new Color(0.45f, 1f, 0.85f);
+            glow.intensity = 2.2f;
+            glow.range = 12f;
+
+            // Flat box hitbox for the dish: covers the saucer body while leaving
+            // the dome exposed above it so weak-point shots land on the dome.
+            var col = root.AddComponent<BoxCollider>();
+            col.center = Vector3.zero;
+            col.size = new Vector3(3.2f, 0.75f, 3.2f);
+
+            var health = root.AddComponent<Health>();
+
+            // Weak point: hits on the glowing dome hurt a lot more.
+            var weak = dome.AddComponent<WeakPoint>();
+            weak.Configure(health, data.weakPointMultiplier);
+
+            var ufo = root.AddComponent<UfoEnemy>();
+            ufo.Configure(data);
+            root.AddComponent<HitFlash>();
+
+            var bar = root.AddComponent<HillbillyAlienShooter.UI.EnemyHealthBar>();
+            bar.Configure(2.3f, 2.4f); // wide bar floating above the dome
+            return root;
+        }
+
+        /// <summary>Slow, dodgeable plasma bolt fired by war saucers.</summary>
+        public static GameObject BuildPlasmaBolt(Vector3 pos, Vector3 dir, EnemyData data, GameObject playerTarget)
+        {
+            var go = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+            go.name = "PlasmaBolt";
+            SafeDestroy(go.GetComponent<Collider>()); // distance-checked, never physical
+            go.transform.position = pos;
+            go.transform.localScale = Vector3.one * 0.38f;
+            go.GetComponent<Renderer>().sharedMaterial = MakeMaterial(new Color(1f, 0.35f, 0.55f), 0.8f);
+
+            // Hot pink glow so bolts read at night.
+            var light = go.AddComponent<Light>();
+            light.type = LightType.Point;
+            light.color = new Color(1f, 0.4f, 0.6f);
+            light.intensity = 1.8f;
+            light.range = 3f;
+
+            var bolt = go.AddComponent<PlasmaBolt>();
+            bolt.Configure(dir, data.projectileSpeed, data.projectileDamage, playerTarget);
+            return go;
+        }
+
+        /// <summary>Expanding slam ring marking a Brute's AoE. Self-destructs.</summary>
+        public static GameObject BuildShockwave(Vector3 pos, float radius, float duration)
+        {
+            var go = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+            go.name = "Shockwave";
+            SafeDestroy(go.GetComponent<Collider>());
+            go.transform.position = new Vector3(pos.x, pos.y + 0.06f, pos.z);
+            go.transform.localScale = new Vector3(0.6f, 0.08f, 0.6f);
+
+            var color = new Color(1f, 0.7f, 0.25f, 0.65f); // hot dust ring
+            var mat = new Material(Shader.Find("Sprites/Default")) { color = color };
+            go.GetComponent<Renderer>().material = mat;
+
+            var fx = go.AddComponent<HillbillyAlienShooter.Effects.ShockwaveFx>();
+            fx.Configure(radius, duration, mat, color);
+            return go;
+        }
+
+        // -----------------------------------------------------------------
+        // Pickups
+        // -----------------------------------------------------------------
+
+        /// <summary>A glowing shard of alien tech (dropped by dead invaders).</summary>
+        public static GameObject BuildTechPickup(Vector3 pos, int amount)
+        {
+            var root = new GameObject("TechPickup");
+            root.transform.position = pos;
+
+            var glowMat = MakeMaterial(new Color(0.35f, 1f, 1f), 0.8f); // electric cyan
+
+            // Two interlocked rotated cubes read as a crystal at low poly counts.
+            var a = Prim(PrimitiveType.Cube, root.transform, "Shard_A", Vector3.zero, Vector3.one * 0.34f, glowMat, collider: false);
+            a.transform.localRotation = Quaternion.Euler(45f, 0f, 45f);
+            var b = Prim(PrimitiveType.Cube, root.transform, "Shard_B", Vector3.zero, Vector3.one * 0.34f, glowMat, collider: false);
+            b.transform.localRotation = Quaternion.Euler(0f, 45f, 45f);
+
+            // Night-time farm = pickup glow does real work guiding the player.
+            var lightGo = new GameObject("Glow");
+            lightGo.transform.SetParent(root.transform, false);
+            var light = lightGo.AddComponent<Light>();
+            light.type = LightType.Point;
+            light.color = new Color(0.4f, 1f, 1f);
+            light.intensity = 2.4f;
+            light.range = 4f;
+
+            var pickup = root.AddComponent<HillbillyAlienShooter.Pickups.TechPickup>();
+            pickup.Configure(amount);
             return root;
         }
 

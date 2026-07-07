@@ -38,7 +38,8 @@ namespace HillbillyAlienShooter.Core
             // Runs before any OnEnable this scene, so we start from a clean slate.
             GameEvents.ResetAll();
             HillbillyAlienShooter.Livestock.Cattle.ResetTallies();
-            HillbillyAlienShooter.Enemies.AlienEnemy.ResetCount();
+            HillbillyAlienShooter.Enemies.EnemyRegistry.Reset();
+            TechInventory.Reset();
         }
 
         private void OnEnable()

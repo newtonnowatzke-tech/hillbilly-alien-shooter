@@ -66,6 +66,19 @@ Browser quirks are pre-handled: click once to capture the mouse, Esc auto-pauses
 - 📢 **Whistle mechanic** — **H** toggles *follow* ↔ *stay* from anywhere; she gallops to catch up, and "knows a shortcut" (teleports) if truly left behind
 - ⛰️ **Rolling terrain** — gentle hills, with CharacterController physics for player + horse and ground-snapping for aliens & wandering cattle
 
+### Enemy variety & alien tech (Packet 2.1)
+- 👾 **Little Alien scouts** now weave "annoying paths" toward your cows — lead your buckshot
+- 👹 **Medium Aliens** — bigger, faster violet hunters that *flank* you from the sides before charging in with quick light swipes (pairs naturally pincer)
+- 🛸 **Scout Saucers** — dish-shaped UFOs with rim lights and a belly glow that hover over the herd and beam cows up *from the air*; can't be body-blocked, must be shot down; spin-crash death
+- 💎 **Alien tech drops** — dead invaders drop glowing tech shards that magnet-collect as you ride past; the HUD tallies them (the Packet 2.3 upgrade system spends them; saucers always pay out 3)
+
+### Heavy hitters & combat UFOs (Packet 2.2)
+- 🦖 **Large Aliens** — ember-orange bruisers (1.7×, 90 HP) with deliberate medium-damage swipes; pure data on the Hunter role, zero new code
+- 🦍 **Brutes** — slow 2.2× walking walls (220 HP) with a telegraphed **ground slam**: crouch wind-up (your dodge window), then an expanding shockwave ring — 30 damage if you're still inside it
+- 🛸💥 **War Saucers** — combat UFOs that fire slow, dodgeable **plasma bolts** at you *while* beaming your cows (area denial), on top of the scout's abduction kit
+- 🎯 **Weak points** — the saucer's glowing dome takes **2.5× damage**; the dish hitbox is shaped so dome shots genuinely land
+- 📊 **Enemy health bars** — world-space billboard bars appear on first damage, shading green → amber → red; plus a white **hit-flash** on every enemy so night hits always read
+
 ### Camera, pause & browser builds (Packet 1.3)
 - 🎥 **Third-person camera** — over-the-shoulder follow cam with collision (never clips through the barn), smooth zoom-out while mounted, and a gallop FOV kick; **V** toggles back to first person any time
 - ⏸️ **Pause menu** — Esc/P/Start freezes the action mid-abduction; Resume / Settings / Restart / Quit
@@ -81,9 +94,9 @@ Development proceeds in self-contained **work packets** (see the [roadmap](docs/
 | **1 — Foundation** | 1.1 | Project setup, core loop, shotgun, cattle, first wave | ✅ Done |
 | | 1.2 | Horse finding/mounting, riding physics, shoot-while-riding, follow/stay | ✅ Done |
 | | 1.3 | Third-person camera, pause menu + settings, WebGL builds | ✅ Done |
-| **2 — Combat & Enemies** | 2.1 | Little & Medium aliens, drops, UFO abduction beams | ⬜ Next |
-| | 2.2 | Large aliens, Brutes, dish UFOs, health bars | ⬜ |
-| | 2.3 | Alien tech upgrade system (ammo, reload, explosive, rapid fire…) | ⬜ |
+| **2 — Combat & Enemies** | 2.1 | Little & Medium aliens, tech drops, UFO abduction beams | ✅ Done |
+| | 2.2 | Large aliens, Brutes, combat UFOs, weak points, health bars | ✅ Done |
+| | 2.3 | Alien tech upgrade system (ammo, reload, explosive, rapid fire…) | ⬜ Next |
 | **3 — Progression** | 3.1 | Escalating farm waves, rest periods, progression gate | ⬜ |
 | | 3.2 | Alien ship boarding + space transition | ⬜ |
 | | 3.3 | Alien homeworld level | ⬜ |
@@ -129,6 +142,10 @@ Full instructions (with troubleshooting) in **[SETUP.md](SETUP.md)** — short v
 
 **Watch your shells.** Six in the tube, thirty in the bag. Reloads are slow enough to be a decision — top up between skirmishes, not during them.
 
+**Know your varmints.** Little scouts weave for the cows — lead them. Violet Mediums hunt *you* from the flanks — don't get pincered while lining up a cow rescue. Ember-orange Larges trade speed for hurt. When a moss-green Brute crouches, **run** — the shockwave ring marks where not to be. And when a saucer drifts overhead, drop everything: its air-beam rustles cattle faster than anything on the ground — aim for the **glowing dome** (2.5× damage) and dodge the pink plasma bolts the war models spit while they work.
+
+**Grab the glow.** Dead invaders drop shimmering alien tech — ride close and it flies to you. Stockpile it; upgrades are coming (Packet 2.3).
+
 ## 🗂️ Project Structure
 
 ```
@@ -137,16 +154,19 @@ Assets/_Project/
 ├── Data/                  *.asset               (generated ScriptableObject instances)
 └── Scripts/
     ├── Core/              GameState, GameEvents (event bus), GameManager, IInteractable
-    ├── Combat/            IDamageable, DamageInfo, Health
+    ├── Combat/            IDamageable, DamageInfo, Health, WeakPoint, HitFlash
     ├── Player/            PlayerInputHandler, PlayerController, PlayerInteraction,
     │                      CameraRig (3rd/1st person), PlayerHealth
     ├── Horse/             HorseController      (Idle/Follow/Stay/Mounted + riding physics)
     ├── Weapons/           Shotgun              (hitscan pellets, ammo, reload)
-    ├── Enemies/           AlienEnemy           (hunt → beam → melee AI)
+    ├── Enemies/           AlienEnemy (roles + smash), UfoEnemy (+support fire),
+    │                      PlasmaBolt, EnemyRegistry
+    ├── Pickups/           TechPickup           (magnet-collect alien tech)
+    ├── Effects/           ShockwaveFx          (Brute slam ring)
     ├── Cattle/            Cattle               (abduction meter, registry, tallies)
     ├── Waves/             WaveSpawner
     ├── Data/              WeaponData, EnemyData, WaveData, HorseData   (SO definitions)
-    ├── UI/                HUDController, PauseMenu   (self-building, event-driven)
+    ├── UI/                HUDController, PauseMenu, EnemyHealthBar
     ├── Utils/             LowPolyFactory, GameLayers, GroundSnap
     └── Editor/            FarmSceneBuilder, WebGLBuilder   (Tools ▸ Hillbilly ▸ …)
 Packages/, ProjectSettings/                      (CI-only Unity project scaffolding)
@@ -177,8 +197,13 @@ All live in `Assets/_Project/Data/` — tweak in the Inspector, no code:
 | Asset | What you control |
 |---|---|
 | `WeaponData_Shotgun` | pellet damage/count, spread cone, range, knockback, mag size, reserve, fire cooldown, reload time |
-| `EnemyData_LittleAlien` | health, speed, grab range, abduction rate/sec, melee damage/cooldown, score value, tint |
-| `WaveData_Wave1` | spawn list (enemy × count), start delay, spawn interval |
+| `EnemyData_LittleAlien` | health, speed, weave amplitude/frequency ("annoying paths"), grab range, abduction rate, melee, tech drop chance, tint |
+| `EnemyData_MediumAlien` | hunter stats: flank offset/close range, light-attack damage & cooldown, body scale, drop chance |
+| `EnemyData_LargeAlien` | tougher hunter: 1.7× scale, 90 HP, medium swipes (14 dmg / 1.4 s) |
+| `EnemyData_Brute` | smash stats: AoE radius, wind-up (dodge window), 30-dmg slam, 220 HP tank pace |
+| `EnemyData_ScoutSaucer` | hover height & bob, beam lock radius, air abduction rate, hull HP, weak-point multiplier |
+| `EnemyData_WarSaucer` | everything the scout has **plus** support fire: bolt damage/speed/interval/range |
+| `WaveData_Wave1` | spawn list (currently 6 Little + 3 Medium + 2 Large + 1 Brute + 1 War Saucer), start delay, spawn interval |
 | `HorseData_Buttercup` | gallop/walk/reverse speeds, acceleration, braking, turn rates (standing vs gallop), follow/gallop/teleport distances, colors |
 | `GameManager` (scene) | cattle needed to win |
 | `WaveSpawner` (scene) | spawn ring radius (visualized as a gizmo), optional spawn points |

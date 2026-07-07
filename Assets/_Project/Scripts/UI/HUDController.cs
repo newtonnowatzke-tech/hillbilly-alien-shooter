@@ -24,6 +24,7 @@ namespace HillbillyAlienShooter.UI
         private Text _endHint;
         private Text _promptText;   // "[E] Ride Buttercup"
         private Text _horseText;    // "Buttercup: followin' you"
+        private Text _techText;     // "ALIEN TECH: 3"
 
         private Font _font;
         private float _bannerHideTime;
@@ -45,6 +46,7 @@ namespace HillbillyAlienShooter.UI
             GameEvents.GameStateChanged += OnGameState;
             GameEvents.InteractPromptChanged += OnPrompt;
             GameEvents.HorseStateChanged += OnHorseState;
+            GameEvents.TechChanged += OnTech;
         }
 
         private void OnDisable()
@@ -57,6 +59,7 @@ namespace HillbillyAlienShooter.UI
             GameEvents.GameStateChanged -= OnGameState;
             GameEvents.InteractPromptChanged -= OnPrompt;
             GameEvents.HorseStateChanged -= OnHorseState;
+            GameEvents.TechChanged -= OnTech;
         }
 
         private void Update()
@@ -96,6 +99,8 @@ namespace HillbillyAlienShooter.UI
             _horseText.enabled = has;
             if (has) _horseText.text = status;
         }
+
+        private void OnTech(int total) => _techText.text = $"ALIEN TECH  {total}";
 
         private void OnWaveStarted(int waveNumber)
         {
@@ -189,6 +194,11 @@ namespace HillbillyAlienShooter.UI
             _horseText = MakeText(root, "HorseText", new Vector2(0f, 1f), new Vector2(0f, 1f),
                 new Vector2(30f, -70f), new Vector2(600f, 40f), 24, TextAnchor.UpperLeft, new Color(0.95f, 0.85f, 0.6f));
             _horseText.enabled = false;
+
+            // Alien tech tally, top-right (currency for Packet 2.3 upgrades).
+            _techText = MakeText(root, "TechText", new Vector2(1f, 1f), new Vector2(1f, 1f),
+                new Vector2(-30f, -24f), new Vector2(500f, 50f), 30, TextAnchor.UpperRight, new Color(0.5f, 1f, 1f));
+            _techText.text = "ALIEN TECH  0";
         }
 
         private Text MakeText(Transform parent, string name, Vector2 anchorMin, Vector2 anchorMax,

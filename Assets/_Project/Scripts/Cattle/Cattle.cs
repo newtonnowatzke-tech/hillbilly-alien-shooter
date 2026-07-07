@@ -71,6 +71,23 @@ namespace HillbillyAlienShooter.Livestock
             TakenCount = 0;
         }
 
+        /// <summary>Nearest still-on-the-farm cow to a world position (flat XZ), or null.</summary>
+        public static Cattle FindNearest(Vector3 position)
+        {
+            Cattle nearest = null;
+            float best = float.MaxValue;
+            for (int i = 0; i < Alive.Count; i++)
+            {
+                var cow = Alive[i];
+                if (cow == null) continue;
+                Vector3 d = cow.transform.position - position;
+                d.y = 0f;
+                float sqr = d.sqrMagnitude;
+                if (sqr < best) { best = sqr; nearest = cow; }
+            }
+            return nearest;
+        }
+
         /// <summary>Called by an alien every frame while its beam is on this cow.</summary>
         public void Beam(float progressPerSecond)
         {

@@ -51,8 +51,8 @@ namespace HillbillyAlienShooter.Waves
 
             yield return StartCoroutine(SpawnAll());
 
-            // Wait until every spawned alien is dead or has fled.
-            while (AlienEnemy.ActiveCount > 0)
+            // Wait until every spawned enemy — ground alien or saucer — is gone.
+            while (EnemyRegistry.Count > 0)
                 yield return null;
 
             _waveRunning = false;
@@ -85,7 +85,8 @@ namespace HillbillyAlienShooter.Waves
             }
             else
             {
-                LowPolyFactory.BuildAlien(enemyData, pos);
+                // Role-aware: saucers spawn at altitude, ground aliens at the ring.
+                LowPolyFactory.BuildEnemy(enemyData, pos);
             }
         }
 

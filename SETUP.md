@@ -83,6 +83,32 @@ and aliens shamble in from the tree line to rustle your cattle.
 
 ---
 
+## Testing checklist (Packet 2.2 — heavies, war saucers & health bars)
+
+- [ ] **Health bars:** the first hit on any enemy pops a floating bar above it (green), which shades amber → red as you keep shooting; it always faces the camera and vanishes on death.
+- [ ] **Hit flash:** every pellet impact flashes the enemy white for a blink — hits read clearly at night.
+- [ ] **Large Alien:** big ember-orange hunter; slower than a Medium but its swipes hurt (~14).
+- [ ] **Brute telegraph:** the moss-green giant crouches and bulks out for ~0.8 s before slamming — it's rooted while winding up.
+- [ ] **Dodging the slam:** sprint out of the ring during the crouch → shockwave expands, you take nothing; stand inside → ~30 damage.
+- [ ] **War Saucer support fire:** while hovering/beaming, it lobs slow pink plasma bolts at you; strafing sideways dodges them.
+- [ ] **Weak point:** shoot the saucer's glowing dome — its health bar visibly drops ~2.5× faster than dish hits.
+- [ ] **Bolt cleanup:** bolts fizzle on the ground and never pile up.
+- [ ] **Squash vs smash:** shooting a winding-up Brute flashes it white but doesn't interrupt or distort the crouch.
+- [ ] **Wave completion:** all five enemy types must die (6 Little + 3 Medium + 2 Large + 1 Brute + 1 War Saucer).
+
+## Testing checklist (Packet 2.1 — enemies & tech)
+
+- [ ] **Weaving scouts:** Little Aliens sway side-to-side on approach — noticeably harder to hit than 1.x.
+- [ ] **Medium hunters:** violet, ~1.3× bigger, faster; they curve out to your side before charging; two at once come from *different* sides.
+- [ ] **Light attacks:** a Medium in melee range lands quick small hits (HP ticks down ~6 at a time).
+- [ ] **Saucer arrives:** after the ground spawns, one dish UFO glides in at altitude with rim lights + belly glow.
+- [ ] **Air abduction:** the saucer parks over a cow and a wide cone beam lifts it — faster than ground rustlers.
+- [ ] **Shooting it down:** the saucer dips when hit; on death it spins, crashes, and drops tech at the crash site.
+- [ ] **Tech drops:** some dead aliens leave glowing cyan shards (bobbing, spinning, lit).
+- [ ] **Magnet collect:** walk or ride within ~3 m — the shard flies to you; "ALIEN TECH" (top-right) increments (+3 from a saucer).
+- [ ] **Wave completion:** the wave only completes once ground aliens **and** the saucer are dead.
+- [ ] **Restart:** tech counter resets to 0 on restart.
+
 ## Testing checklist (Packet 1.3 — camera & controls)
 
 - [ ] **Third person default:** game starts over-the-shoulder; the hillbilly capsule and shotgun tracers are visible.
@@ -159,16 +185,19 @@ The `GameManager` has **Cattle Needed To Win** (default 1). The `WaveSpawner` ha
 
 ```
 Core/      GameState, GameEvents (static event bus), GameManager (win/lose/pause), IInteractable
-Combat/    IDamageable, DamageInfo, Health (shared HP)
+Combat/    IDamageable, DamageInfo, Health, WeakPoint (dome bonus damage), HitFlash
 Player/    PlayerInputHandler (New Input System), PlayerController (+mount/dismount),
            PlayerInteraction (proximity prompts), CameraRig (third/first person), PlayerHealth
 Horse/     HorseController (Idle/Follow/Stay/Mounted state machine + riding physics)
 Weapons/   Shotgun (hitscan spread + ammo/reload — works on horseback)
-Enemies/   AlienEnemy (hunt cow → beam → melee fallback)
+Enemies/   AlienEnemy (Rustler/Hunter roles, Swipe/Smash attacks), UfoEnemy (abduction +
+           support fire), PlasmaBolt, EnemyRegistry (shared alive count)
+Pickups/   TechPickup (magnet-collect tech shards → TechInventory)
+Effects/   ShockwaveFx (Brute slam ring)
 Cattle/    Cattle (abduction meter + terrain-aware wander)      [namespace: Livestock]
-Waves/     WaveSpawner (drip-spawn one wave)
-Data/      WeaponData, EnemyData, WaveData, HorseData (ScriptableObjects)
-UI/        HUDController, PauseMenu (both self-building, event-driven)
+Waves/     WaveSpawner (drip-spawn one wave, role-aware)
+Data/      WeaponData, EnemyData (roles + attack styles), WaveData, HorseData (ScriptableObjects)
+UI/        HUDController, PauseMenu, EnemyHealthBar (all self-building, event-driven)
 Utils/     LowPolyFactory (all placeholder primitives), GameLayers, GroundSnap
 Editor/    FarmSceneBuilder (scene generator), WebGLBuilder (browser builds — see docs/WEBGL.md)
 ```
