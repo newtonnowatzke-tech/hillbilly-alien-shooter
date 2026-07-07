@@ -106,6 +106,76 @@ namespace HillbillyAlienShooter.EditorTools
                 d.techDropChance = 1f;        // shooting down a saucer always pays
                 d.techAmount = 3;
             });
+            // Weak point field arrived in Packet 2.2 — apply to pre-existing assets too.
+            scoutSaucer.weakPointMultiplier = 2.5f;
+            EditorUtility.SetDirty(scoutSaucer);
+
+            // Large Alien: tougher hunter with medium-damage swipes. Pure data —
+            // no new code, which is exactly what the role system is for.
+            EnemyData largeAlien = CreateOrLoad<EnemyData>($"{DataFolder}/EnemyData_LargeAlien.asset", d =>
+            {
+                d.displayName = "Large Alien";
+                d.role = EnemyData.EnemyRole.Hunter;
+                d.bodyTint = new Color(1f, 0.45f, 0.25f); // hot ember orange
+                d.bodyScale = 1.7f;
+                d.maxHealth = 90f;
+                d.moveSpeed = 3.4f;
+                d.weaveAmplitude = 0.3f;
+                d.weaveFrequency = 0.6f;
+                d.meleeRange = 2.2f;
+                d.meleeDamage = 14f;      // medium damage...
+                d.meleeCooldown = 1.4f;   // ...at a deliberate pace
+                d.flankOffset = 3f;       // flanks less, bullies more
+                d.flankCloseRange = 5f;
+                d.scoreValue = 400;
+                d.techDropChance = 0.6f;
+                d.techAmount = 2;
+            });
+
+            // Brute: slow walking wall with a telegraphed AoE ground slam.
+            EnemyData brute = CreateOrLoad<EnemyData>($"{DataFolder}/EnemyData_Brute.asset", d =>
+            {
+                d.displayName = "Brute";
+                d.role = EnemyData.EnemyRole.Hunter;
+                d.attackStyle = EnemyData.AttackStyle.Smash;
+                d.bodyTint = new Color(0.55f, 0.6f, 0.35f); // sickly moss
+                d.bodyScale = 2.2f;
+                d.maxHealth = 220f;
+                d.moveSpeed = 2.2f;
+                d.weaveAmplitude = 0f;    // walks dead straight at you
+                d.flankOffset = 0f;       // no flanking — pure inevitability
+                d.flankCloseRange = 4f;
+                d.meleeRange = 2.6f;
+                d.meleeDamage = 30f;      // the smash
+                d.meleeCooldown = 2.6f;
+                d.smashRadius = 3.4f;
+                d.smashWindup = 0.8f;     // the dodge window
+                d.scoreValue = 800;
+                d.techDropChance = 1f;
+                d.techAmount = 3;
+            });
+
+            // War Saucer: the scout's meaner cousin — support fire + abduction.
+            EnemyData warSaucer = CreateOrLoad<EnemyData>($"{DataFolder}/EnemyData_WarSaucer.asset", d =>
+            {
+                d.displayName = "War Saucer";
+                d.role = EnemyData.EnemyRole.Saucer;
+                d.bodyTint = new Color(1f, 0.45f, 0.4f); // hostile red canopy
+                d.maxHealth = 200f;
+                d.moveSpeed = 4.5f;
+                d.hoverHeight = 9f;
+                d.hoverBobAmplitude = 0.4f;
+                d.beamLockRadius = 1.6f;
+                d.abductRatePerSecond = 0.5f;
+                d.projectileDamage = 8f;      // support fire enabled
+                d.projectileSpeed = 10f;
+                d.projectileInterval = 2f;
+                d.projectileRange = 22f;
+                d.weakPointMultiplier = 2.5f;
+                d.scoreValue = 800;
+                d.techDropChance = 1f;
+                d.techAmount = 4;
+            });
 
             WeaponData weaponData = CreateOrLoad<WeaponData>($"{DataFolder}/WeaponData_Shotgun.asset", _ => { });
 
@@ -118,9 +188,11 @@ namespace HillbillyAlienShooter.EditorTools
             });
             waveData.spawns = new System.Collections.Generic.List<WaveData.SpawnEntry>
             {
-                new WaveData.SpawnEntry { enemy = littleAlien, count = 8 },
-                new WaveData.SpawnEntry { enemy = mediumAlien, count = 4 },
-                new WaveData.SpawnEntry { enemy = scoutSaucer, count = 1 },
+                new WaveData.SpawnEntry { enemy = littleAlien, count = 6 },
+                new WaveData.SpawnEntry { enemy = mediumAlien, count = 3 },
+                new WaveData.SpawnEntry { enemy = largeAlien, count = 2 },
+                new WaveData.SpawnEntry { enemy = brute, count = 1 },
+                new WaveData.SpawnEntry { enemy = warSaucer, count = 1 },
             };
             EditorUtility.SetDirty(waveData);
 

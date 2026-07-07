@@ -13,10 +13,17 @@ namespace HillbillyAlienShooter.Data
         /// <summary>
         /// What this enemy fundamentally does:
         ///  Rustler — goes for cattle, beams them up from the ground (Little Alien).
-        ///  Hunter  — hunts the player with a flanking approach (Medium Alien).
+        ///  Hunter  — hunts the player with a flanking approach (Medium/Large/Brute).
         ///  Saucer  — airborne UFO that hovers above cattle and beams them skyward.
         /// </summary>
         public enum EnemyRole { Rustler, Hunter, Saucer }
+
+        /// <summary>
+        /// How a ground alien attacks in melee range:
+        ///  Swipe — instant hit (Little/Medium/Large).
+        ///  Smash — telegraphed crouch wind-up, then an AoE ground slam (Brute).
+        /// </summary>
+        public enum AttackStyle { Swipe, Smash }
 
         [Header("Identity")]
         public string displayName = "Little Alien";
@@ -64,10 +71,30 @@ namespace HillbillyAlienShooter.Data
         [Tooltip("Fraction of a cow abducted per second while beaming (1 = instant).")]
         public float abductRatePerSecond = 0.45f;
 
-        [Header("Melee (only when no cattle remain)")]
+        [Header("Melee")]
+        public AttackStyle attackStyle = AttackStyle.Swipe;
         public float meleeRange = 1.6f;
         public float meleeDamage = 8f;
         public float meleeCooldown = 1.1f;
+
+        [Header("Smash (attackStyle = Smash, i.e. Brutes)")]
+        [Tooltip("AoE radius of the ground slam.")]
+        public float smashRadius = 3.2f;
+        [Tooltip("Telegraph time between the crouch and the slam — the player's dodge window.")]
+        public float smashWindup = 0.8f;
+
+        [Header("Saucer support fire (projectileDamage 0 = unarmed)")]
+        [Tooltip("Damage per plasma bolt. 0 disables support fire (scout saucers).")]
+        public float projectileDamage = 0f;
+        public float projectileSpeed = 10f;
+        [Tooltip("Seconds between shots.")]
+        public float projectileInterval = 2.2f;
+        [Tooltip("Only fires when the player is within this range.")]
+        public float projectileRange = 22f;
+
+        [Header("Weak point (Saucer dome)")]
+        [Tooltip("Damage multiplier for hits on the glowing dome.")]
+        public float weakPointMultiplier = 2.5f;
 
         [Header("Rewards")]
         public int scoreValue = 100;

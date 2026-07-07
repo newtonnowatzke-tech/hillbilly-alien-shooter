@@ -34,8 +34,10 @@ namespace HillbillyAlienShooter.Enemies
         private LineRenderer _beam;
         private Vector3 _baseScale;
         private Coroutine _squashRoutine;
+        private HitFlash _hitFlash;
         private float _weavePhase;   // per-alien offset so scouts don't sway in sync
         private int _flankSide;      // -1 or +1, chosen once per hunter
+        private bool _smashing;      // Brute wind-up in progress: rooted in place
 
         private void Awake()
         {
@@ -43,6 +45,7 @@ namespace HillbillyAlienShooter.Enemies
             if (data == null) data = EnemyData.CreateDefault();
             _health.SetMaxHealth(data.maxHealth);
             _baseScale = transform.localScale;
+            _hitFlash = GetComponent<HitFlash>();
             _weavePhase = Random.Range(0f, Mathf.PI * 2f);
             _flankSide = Random.value < 0.5f ? -1 : 1;
             SetupBeam();
@@ -78,7 +81,7 @@ namespace HillbillyAlienShooter.Enemies
 
         private void Update()
         {
-            if (_dead) return;
+            if (_dead || _smashing) return; // a winding-up Brute is rooted
 
             if (data.role == EnemyData.EnemyRole.Hunter)
             {
@@ -164,14 +167,62 @@ namespace HillbillyAlienShooter.Enemies
         {
             FaceFlat(target);
             if (Time.time < _nextMeleeTime) return;
-
             _nextMeleeTime = Time.time + data.meleeCooldown;
+
+            if (data.attackStyle == EnemyData.AttackStyle.Smash)
+            {
+                StartCoroutine(SmashRoutine());
+                return;
+            }
+
+            // Swipe: instant hit.
             var dmg = _player.GetComponentInChildren<IDamageable>();
             if (dmg != null && dmg.IsAlive)
             {
                 Vector3 dir = (target - transform.position).normalized;
                 dmg.TakeDamage(new DamageInfo(data.meleeDamage, target, dir, source: gameObject));
             }
+        }
+
+        /// <summary>
+        /// Brute ground slam: a readable crouch telegraph (the dodge window),
+        /// then an AoE hit + shockwave ring. The Brute is rooted throughout, so
+        /// clearing smashRadius during the wind-up is a guaranteed dodge.
+        /// </summary>
+        private IEnumerator SmashRoutine()
+        {
+            _smashing = true;
+
+            // Telegraph: crouch down and bulk out.
+            Vector3 crouch = Vector3.Scale(_baseScale, new Vector3(1.3f, 0.55f, 1.3f));
+            float t = 0f;
+            while (t < 1f && !_dead)
+            {
+                t += Time.deltaTime / Mathf.Max(0.05f, data.smashWindup);
+                transform.localScale = Vector3.Lerp(_baseScale, crouch, t);
+                yield return null;
+            }
+
+            if (!_dead)
+            {
+                // SLAM. Pop back up and punish anyone still inside the ring.
+                transform.localScale = _baseScale;
+                HillbillyAlienShooter.Utils.LowPolyFactory.BuildShockwave(
+                    transform.position, data.smashRadius, 0.45f);
+
+                if (_player != null && FlatDistance(transform.position, _player.position) <= data.smashRadius)
+                {
+                    var dmg = _player.GetComponentInChildren<IDamageable>();
+                    if (dmg != null && dmg.IsAlive)
+                    {
+                        Vector3 dir = (_player.position - transform.position).normalized;
+                        dmg.TakeDamage(new DamageInfo(data.meleeDamage, _player.position, dir,
+                            force: 8f, source: gameObject));
+                    }
+                }
+            }
+
+            _smashing = false;
         }
 
         private void MoveTowards(Vector3 worldTarget)
@@ -209,6 +260,11 @@ namespace HillbillyAlienShooter.Enemies
         private void OnDamaged(DamageInfo info)
         {
             if (_dead) return;
+            _hitFlash?.Flash();
+
+            // Don't fight the smash telegraph over the transform's scale.
+            if (_smashing) return;
+
             if (_squashRoutine != null) StopCoroutine(_squashRoutine);
             _squashRoutine = StartCoroutine(SquashRoutine());
         }

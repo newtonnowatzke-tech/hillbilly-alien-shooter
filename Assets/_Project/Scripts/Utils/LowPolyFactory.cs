@@ -245,6 +245,10 @@ namespace HillbillyAlienShooter.Utils
             var alien = root.AddComponent<AlienEnemy>();
             alien.Configure(data);
             root.AddComponent<GroundSnap>(); // hug the hills while shambling
+            root.AddComponent<HitFlash>();
+
+            var bar = root.AddComponent<HillbillyAlienShooter.UI.EnemyHealthBar>();
+            bar.Configure(1.9f * data.bodyScale, 0.7f + 0.35f * data.bodyScale);
             return root;
         }
 
@@ -260,9 +264,10 @@ namespace HillbillyAlienShooter.Utils
             var domeMat = MakeMaterial(data.bodyTint, 0.5f);                 // glowing canopy
             var darkMat = MakeMaterial(new Color(0.2f, 0.2f, 0.25f), 0.3f);
 
-            // Dish + canopy + belly.
+            // Dish + canopy + belly. The dome gets its OWN collider (weak point);
+            // the dish hitbox below is a flat box so it doesn't swallow the dome.
             Prim(PrimitiveType.Sphere, root.transform, "Dish", Vector3.zero, new Vector3(3.2f, 0.7f, 3.2f), hull, collider: false);
-            Prim(PrimitiveType.Sphere, root.transform, "Dome", new Vector3(0f, 0.45f, 0f), new Vector3(1.3f, 1.05f, 1.3f), domeMat, collider: false);
+            var dome = Prim(PrimitiveType.Sphere, root.transform, "Dome", new Vector3(0f, 0.45f, 0f), new Vector3(1.3f, 1.05f, 1.3f), domeMat, collider: true);
             Prim(PrimitiveType.Sphere, root.transform, "Belly", new Vector3(0f, -0.3f, 0f), new Vector3(1.0f, 0.4f, 1.0f), darkMat, collider: false);
 
             // Ring of rim lights for that classic saucer look.
@@ -287,14 +292,65 @@ namespace HillbillyAlienShooter.Utils
             glow.intensity = 2.2f;
             glow.range = 12f;
 
-            // One fat shootable hitbox for the whole dish.
-            var col = root.AddComponent<SphereCollider>();
-            col.radius = 1.6f;
+            // Flat box hitbox for the dish: covers the saucer body while leaving
+            // the dome exposed above it so weak-point shots land on the dome.
+            var col = root.AddComponent<BoxCollider>();
+            col.center = Vector3.zero;
+            col.size = new Vector3(3.2f, 0.75f, 3.2f);
 
-            root.AddComponent<Health>();
+            var health = root.AddComponent<Health>();
+
+            // Weak point: hits on the glowing dome hurt a lot more.
+            var weak = dome.AddComponent<WeakPoint>();
+            weak.Configure(health, data.weakPointMultiplier);
+
             var ufo = root.AddComponent<UfoEnemy>();
             ufo.Configure(data);
+            root.AddComponent<HitFlash>();
+
+            var bar = root.AddComponent<HillbillyAlienShooter.UI.EnemyHealthBar>();
+            bar.Configure(2.3f, 2.4f); // wide bar floating above the dome
             return root;
+        }
+
+        /// <summary>Slow, dodgeable plasma bolt fired by war saucers.</summary>
+        public static GameObject BuildPlasmaBolt(Vector3 pos, Vector3 dir, EnemyData data, GameObject playerTarget)
+        {
+            var go = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+            go.name = "PlasmaBolt";
+            SafeDestroy(go.GetComponent<Collider>()); // distance-checked, never physical
+            go.transform.position = pos;
+            go.transform.localScale = Vector3.one * 0.38f;
+            go.GetComponent<Renderer>().sharedMaterial = MakeMaterial(new Color(1f, 0.35f, 0.55f), 0.8f);
+
+            // Hot pink glow so bolts read at night.
+            var light = go.AddComponent<Light>();
+            light.type = LightType.Point;
+            light.color = new Color(1f, 0.4f, 0.6f);
+            light.intensity = 1.8f;
+            light.range = 3f;
+
+            var bolt = go.AddComponent<PlasmaBolt>();
+            bolt.Configure(dir, data.projectileSpeed, data.projectileDamage, playerTarget);
+            return go;
+        }
+
+        /// <summary>Expanding slam ring marking a Brute's AoE. Self-destructs.</summary>
+        public static GameObject BuildShockwave(Vector3 pos, float radius, float duration)
+        {
+            var go = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+            go.name = "Shockwave";
+            SafeDestroy(go.GetComponent<Collider>());
+            go.transform.position = new Vector3(pos.x, pos.y + 0.06f, pos.z);
+            go.transform.localScale = new Vector3(0.6f, 0.08f, 0.6f);
+
+            var color = new Color(1f, 0.7f, 0.25f, 0.65f); // hot dust ring
+            var mat = new Material(Shader.Find("Sprites/Default")) { color = color };
+            go.GetComponent<Renderer>().material = mat;
+
+            var fx = go.AddComponent<HillbillyAlienShooter.Effects.ShockwaveFx>();
+            fx.Configure(radius, duration, mat, color);
+            return go;
         }
 
         // -----------------------------------------------------------------

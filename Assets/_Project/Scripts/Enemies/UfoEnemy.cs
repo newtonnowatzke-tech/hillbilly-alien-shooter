@@ -27,12 +27,15 @@ namespace HillbillyAlienShooter.Enemies
         [SerializeField] private EnemyData data;
 
         private Health _health;
+        private HitFlash _hitFlash;
         private LineRenderer _beam;
         private bool _dead;
         private float _bobPhase;
         private float _orbitAngle;              // idle circling when no cattle remain
         private Quaternion _baseTilt = Quaternion.identity;
         private Vector3 _lastPos;
+        private GameObject _playerGo;           // support-fire target
+        private float _nextShotTime;
 
         private void Awake()
         {
@@ -43,10 +46,17 @@ namespace HillbillyAlienShooter.Enemies
                 data.role = EnemyData.EnemyRole.Saucer;
             }
             _health.SetMaxHealth(data.maxHealth);
+            _hitFlash = GetComponent<HitFlash>();
             _bobPhase = Random.Range(0f, Mathf.PI * 2f);
             _orbitAngle = Random.Range(0f, Mathf.PI * 2f);
             _lastPos = transform.position;
             SetupBeam();
+        }
+
+        private void Start()
+        {
+            var pc = FindFirstObjectByType<HillbillyAlienShooter.Player.PlayerController>();
+            if (pc != null) _playerGo = pc.gameObject;
         }
 
         private void OnEnable()
@@ -109,6 +119,28 @@ namespace HillbillyAlienShooter.Enemies
                 }
             }
             if (!beaming) SetBeam(false, Vector3.zero);
+
+            HandleSupportFire();
+        }
+
+        /// <summary>
+        /// War saucers pepper the hillbilly with slow plasma bolts while they
+        /// work — area denial that punishes standing still to line up shots.
+        /// Disabled entirely when projectileDamage is 0 (scout saucers).
+        /// </summary>
+        private void HandleSupportFire()
+        {
+            if (data.projectileDamage <= 0f || _playerGo == null) return;
+            if (Time.time < _nextShotTime) return;
+
+            Vector3 targetPos = _playerGo.transform.position;
+            if (Vector3.Distance(transform.position, targetPos) > data.projectileRange) return;
+
+            _nextShotTime = Time.time + data.projectileInterval;
+
+            Vector3 muzzle = transform.position + Vector3.down * 0.7f;
+            Vector3 dir = (targetPos - muzzle).normalized;
+            HillbillyAlienShooter.Utils.LowPolyFactory.BuildPlasmaBolt(muzzle, dir, data, _playerGo);
         }
 
         /// <summary>Cosmetic: lean a few degrees into the direction of travel.</summary>
@@ -133,6 +165,7 @@ namespace HillbillyAlienShooter.Enemies
         private void OnDamaged(DamageInfo info)
         {
             if (_dead) return;
+            _hitFlash?.Flash();
             // A quick dip + jolt so hits read clearly against the night sky.
             transform.position += Vector3.down * 0.15f + Random.insideUnitSphere * 0.05f;
         }
