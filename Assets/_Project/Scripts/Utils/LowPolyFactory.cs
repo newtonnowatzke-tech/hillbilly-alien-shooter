@@ -487,7 +487,9 @@ namespace HillbillyAlienShooter.Utils
             cam.backgroundColor = new Color(0.05f, 0.06f, 0.14f); // night sky
             camGo.AddComponent<AudioListener>();
 
-            // Shotgun lives on the player root; it resolves the camera as its aim source.
+            // Shotgun + the jury-rig upgrade bench live on the player root; the
+            // shotgun resolves the camera pivot as its aim source at Start.
+            root.AddComponent<WeaponUpgradeController>();
             root.AddComponent<Shotgun>();
 
             return root;

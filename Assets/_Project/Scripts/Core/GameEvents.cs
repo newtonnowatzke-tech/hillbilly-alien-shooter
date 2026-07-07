@@ -48,6 +48,25 @@ namespace HillbillyAlienShooter.Core
         public static void RaiseTechChanged(int total) => TechChanged?.Invoke(total);
 
         // ---------------------------------------------------------------
+        // Upgrades (Packet 2.3)
+        // ---------------------------------------------------------------
+        /// <summary>Short centre-screen message (upgrade acquired, not enough tech, ...).</summary>
+        public static event Action<string> UpgradeToast;
+        public static void RaiseUpgradeToast(string message) => UpgradeToast?.Invoke(message);
+
+        /// <summary>
+        /// A timed upgrade was activated, stacked, or extended.
+        /// Args: (display name, seconds remaining, stack count). The HUD counts the
+        /// remaining time down locally between these events.
+        /// </summary>
+        public static event Action<string, float, int> UpgradeChanged;
+        public static void RaiseUpgradeChanged(string name, float remaining, int stacks) => UpgradeChanged?.Invoke(name, remaining, stacks);
+
+        /// <summary>A timed upgrade ran out. Arg: display name.</summary>
+        public static event Action<string> UpgradeExpired;
+        public static void RaiseUpgradeExpired(string name) => UpgradeExpired?.Invoke(name);
+
+        // ---------------------------------------------------------------
         // Cattle
         // ---------------------------------------------------------------
         /// <summary>Fired whenever cattle tallies change. Args: (saved/alive, taken, total).</summary>
@@ -105,6 +124,9 @@ namespace HillbillyAlienShooter.Core
             EnemyCountChanged = null;
             EnemyKilled = null;
             TechChanged = null;
+            UpgradeToast = null;
+            UpgradeChanged = null;
+            UpgradeExpired = null;
             CattleCountsChanged = null;
             PlayerHealthChanged = null;
             PlayerDied = null;

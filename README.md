@@ -72,6 +72,13 @@ Browser quirks are pre-handled: click once to capture the mouse, Esc auto-pauses
 - 🛸 **Scout Saucers** — dish-shaped UFOs with rim lights and a belly glow that hover over the herd and beam cows up *from the air*; can't be body-blocked, must be shot down; spin-crash death
 - 💎 **Alien tech drops** — dead invaders drop glowing tech shards that magnet-collect as you ride past; the HUD tallies them (the Packet 2.3 upgrade system spends them; saucers always pay out 3)
 
+### Alien tech upgrades (Packet 2.3)
+- 🎰 **Jury-rig (Q)** — spend 5 alien tech on a **wild upgrade roll** from the weighted random pool; every roll is a mid-fight gamble
+- 🔫 **The pool** — **Extra Shells** (+12 reserve, instant), **Greased Lightnin'** (reload ×0.45, 20 s), **Boomstick Rounds** (pellet impacts detonate in an AoE, 15 s), **Hair Trigger** (fire rate ×~2, 15 s), **Moonshine Timer** (+8 s to every running upgrade — a gamble that whiffs if nothing's active)
+- 📚 **Stacking** — re-rolling an active upgrade extends its clock and bumps its stack (×2, ×3); Boomstick's blast radius grows +25% per stack
+- ⏱️ **Power-up slots on the HUD** — active upgrades tick down live under the tech tally; center-screen toasts announce every roll in proper hillbilly
+- 🧩 **Fully data-driven** — each upgrade is a ScriptableObject; new upgrades are new assets, no code
+
 ### Heavy hitters & combat UFOs (Packet 2.2)
 - 🦖 **Large Aliens** — ember-orange bruisers (1.7×, 90 HP) with deliberate medium-damage swipes; pure data on the Hunter role, zero new code
 - 🦍 **Brutes** — slow 2.2× walking walls (220 HP) with a telegraphed **ground slam**: crouch wind-up (your dodge window), then an expanding shockwave ring — 30 damage if you're still inside it
@@ -96,8 +103,8 @@ Development proceeds in self-contained **work packets** (see the [roadmap](docs/
 | | 1.3 | Third-person camera, pause menu + settings, WebGL builds | ✅ Done |
 | **2 — Combat & Enemies** | 2.1 | Little & Medium aliens, tech drops, UFO abduction beams | ✅ Done |
 | | 2.2 | Large aliens, Brutes, combat UFOs, weak points, health bars | ✅ Done |
-| | 2.3 | Alien tech upgrade system (ammo, reload, explosive, rapid fire…) | ⬜ Next |
-| **3 — Progression** | 3.1 | Escalating farm waves, rest periods, progression gate | ⬜ |
+| | 2.3 | Alien tech upgrade system (ammo, reload, explosive, rapid fire…) | ✅ Done |
+| **3 — Progression** | 3.1 | Escalating farm waves, rest periods, progression gate | ⬜ Next |
 | | 3.2 | Alien ship boarding + space transition | ⬜ |
 | | 3.3 | Alien homeworld level | ⬜ |
 | | 3.4 | Alien King boss + finale | ⬜ |
@@ -128,6 +135,7 @@ Full instructions (with troubleshooting) in **[SETUP.md](SETUP.md)** — short v
 | Reload | R | X / □ (West) |
 | Interact — mount/dismount | E | Y / △ (North) |
 | Whistle — follow ↔ stay | H | D-pad up |
+| Jury-rig wild upgrade (5 tech) | Q | Left shoulder |
 | Ride: throttle / brake–reverse | W / S | Left stick ↑ / ↓ |
 | Ride: steer | A / D | Left stick ← / → |
 | Toggle camera (third ↔ first person) | V | Right stick click |
@@ -144,7 +152,7 @@ Full instructions (with troubleshooting) in **[SETUP.md](SETUP.md)** — short v
 
 **Know your varmints.** Little scouts weave for the cows — lead them. Violet Mediums hunt *you* from the flanks — don't get pincered while lining up a cow rescue. Ember-orange Larges trade speed for hurt. When a moss-green Brute crouches, **run** — the shockwave ring marks where not to be. And when a saucer drifts overhead, drop everything: its air-beam rustles cattle faster than anything on the ground — aim for the **glowing dome** (2.5× damage) and dodge the pink plasma bolts the war models spit while they work.
 
-**Grab the glow.** Dead invaders drop shimmering alien tech — ride close and it flies to you. Stockpile it; upgrades are coming (Packet 2.3).
+**Grab the glow, then gamble it.** Dead invaders drop shimmering alien tech — ride close and it flies to you. Five tech buys a **jury-rig roll (Q)**: maybe shells, maybe a hair trigger, maybe *boomstick rounds*. Rolling the same upgrade twice stacks it — and Moonshine Timer stretches everything that's already running. Roll mid-brawl at your own risk, partner.
 
 ## 🗂️ Project Structure
 
@@ -158,14 +166,15 @@ Assets/_Project/
     ├── Player/            PlayerInputHandler, PlayerController, PlayerInteraction,
     │                      CameraRig (3rd/1st person), PlayerHealth
     ├── Horse/             HorseController      (Idle/Follow/Stay/Mounted + riding physics)
-    ├── Weapons/           Shotgun              (hitscan pellets, ammo, reload)
+    ├── Weapons/           Shotgun (hitscan pellets, ammo, reload, explosive rounds),
+    │                      WeaponUpgradeController (wild rolls, stacking timers)
     ├── Enemies/           AlienEnemy (roles + smash), UfoEnemy (+support fire),
     │                      PlasmaBolt, EnemyRegistry
     ├── Pickups/           TechPickup           (magnet-collect alien tech)
     ├── Effects/           ShockwaveFx          (Brute slam ring)
     ├── Cattle/            Cattle               (abduction meter, registry, tallies)
     ├── Waves/             WaveSpawner
-    ├── Data/              WeaponData, EnemyData, WaveData, HorseData   (SO definitions)
+    ├── Data/              WeaponData, EnemyData, WaveData, HorseData, UpgradeData
     ├── UI/                HUDController, PauseMenu, EnemyHealthBar
     ├── Utils/             LowPolyFactory, GameLayers, GroundSnap
     └── Editor/            FarmSceneBuilder, WebGLBuilder   (Tools ▸ Hillbilly ▸ …)
@@ -204,6 +213,8 @@ All live in `Assets/_Project/Data/` — tweak in the Inspector, no code:
 | `EnemyData_ScoutSaucer` | hover height & bob, beam lock radius, air abduction rate, hull HP, weak-point multiplier |
 | `EnemyData_WarSaucer` | everything the scout has **plus** support fire: bolt damage/speed/interval/range |
 | `WaveData_Wave1` | spawn list (currently 6 Little + 3 Medium + 2 Large + 1 Brute + 1 War Saucer), start delay, spawn interval |
+| `UpgradeData_*` (5 assets) | per-upgrade amount, duration, max stacks, explosion damage, pool weight, flavor line |
+| `WeaponUpgradeController` (player) | roll cost (default 5 tech) and which assets are in the wild pool |
 | `HorseData_Buttercup` | gallop/walk/reverse speeds, acceleration, braking, turn rates (standing vs gallop), follow/gallop/teleport distances, colors |
 | `GameManager` (scene) | cattle needed to win |
 | `WaveSpawner` (scene) | spawn ring radius (visualized as a gizmo), optional spawn points |

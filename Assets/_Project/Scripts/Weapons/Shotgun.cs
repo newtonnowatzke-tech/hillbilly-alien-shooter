@@ -1,4 +1,5 @@
 using System.Collections;
+using System.Collections.Generic;
 using UnityEngine;
 using HillbillyAlienShooter.Combat;
 using HillbillyAlienShooter.Core;
@@ -40,13 +41,19 @@ namespace HillbillyAlienShooter.Weapons
         public bool IsReloading { get; private set; }
 
         private PlayerInputHandler _input;
+        private WeaponUpgradeController _upgrades; // optional — null means no upgrade system
         private float _nextFireTime;
         private LineRenderer _tracer;
         private bool _gameActive = true;
 
+        // Scratch collections reused across shots (no per-shot allocations).
+        private readonly HashSet<IDamageable> _explosionVictims = new HashSet<IDamageable>();
+        private readonly Collider[] _explosionHits = new Collider[24];
+
         private void Awake()
         {
             _input = GetComponentInParent<PlayerInputHandler>();
+            _upgrades = GetComponentInParent<WeaponUpgradeController>();
 
             if (weaponData == null)
                 weaponData = WeaponData.CreateDefault();
@@ -117,7 +124,9 @@ namespace HillbillyAlienShooter.Weapons
                 return;
             }
 
-            _nextFireTime = Time.time + weaponData.fireCooldown;
+            // Rapid Fire upgrade shrinks the cooldown live.
+            float cooldown = weaponData.fireCooldown * (_upgrades != null ? _upgrades.FireCooldownMultiplier : 1f);
+            _nextFireTime = Time.time + cooldown;
             Magazine--;
 
             FirePellets();
@@ -140,6 +149,13 @@ namespace HillbillyAlienShooter.Weapons
 
             _tracer.positionCount = pellets * 2;
 
+            // Boomstick Rounds: pellet impacts detonate. We gather hit points and
+            // detonate ONCE per shot at their centroid, hitting each victim once —
+            // eight pellet-explosions per pull would be pure chaos (and unfair).
+            float blastRadius = _upgrades != null ? _upgrades.ExplosiveRadius : 0f;
+            Vector3 hitCentroid = Vector3.zero;
+            int hitCount = 0;
+
             for (int i = 0; i < pellets; i++)
             {
                 Vector3 dir = ApplyConeSpread(forward, weaponData.spreadAngle);
@@ -148,6 +164,8 @@ namespace HillbillyAlienShooter.Weapons
                 if (Physics.Raycast(origin, dir, out RaycastHit hit, weaponData.range, hitMask, QueryTriggerInteraction.Ignore))
                 {
                     endPoint = hit.point;
+                    hitCentroid += hit.point;
+                    hitCount++;
 
                     // Look for a damageable on the collider or its parents.
                     var damageable = hit.collider.GetComponentInParent<IDamageable>();
@@ -169,7 +187,48 @@ namespace HillbillyAlienShooter.Weapons
                 _tracer.SetPosition(i * 2 + 1, endPoint);
             }
 
+            if (blastRadius > 0f && hitCount > 0)
+                Explode(hitCentroid / hitCount, blastRadius, _upgrades.ExplosiveDamage);
+
             StartCoroutine(TracerRoutine());
+        }
+
+        /// <summary>
+        /// Boomstick Rounds detonation: AoE damage around the shot's impact
+        /// centroid. Hits each enemy once per shot; the player, horse and cattle
+        /// are immune (this is an upgrade, not a foot-gun).
+        /// </summary>
+        private void Explode(Vector3 center, float radius, float damage)
+        {
+            int count = Physics.OverlapSphereNonAlloc(center, radius, _explosionHits, ~0, QueryTriggerInteraction.Ignore);
+            _explosionVictims.Clear();
+
+            for (int i = 0; i < count; i++)
+            {
+                var col = _explosionHits[i];
+                if (col == null) continue;
+                if (col.transform.root == transform.root) continue; // never ourselves (or our horse while mounted)
+                if (col.GetComponentInParent<HillbillyAlienShooter.Player.PlayerController>() != null) continue;
+                if (col.GetComponentInParent<HillbillyAlienShooter.Horse.HorseController>() != null) continue;
+
+                var damageable = col.GetComponentInParent<IDamageable>();
+                if (damageable == null || !damageable.IsAlive) continue;
+                if (!_explosionVictims.Add(damageable)) continue; // once per shot
+
+                Vector3 dir = (col.transform.position - center).normalized;
+                damageable.TakeDamage(new DamageInfo(damage, center, dir, force: 4f, source: gameObject));
+            }
+
+            // Reuse the slam ring as the blast marker (proper VFX in 4.3).
+            HillbillyAlienShooter.Utils.LowPolyFactory.BuildShockwave(center, radius, 0.3f);
+        }
+
+        /// <summary>Top up reserve shells (Extra Shells upgrade).</summary>
+        public void AddReserve(int shells)
+        {
+            if (shells <= 0) return;
+            Reserve += shells;
+            GameEvents.RaiseAmmoChanged(Magazine, Reserve);
         }
 
         /// <summary>Returns <paramref name="forward"/> rotated by a random offset within a cone.</summary>
@@ -202,7 +261,9 @@ namespace HillbillyAlienShooter.Weapons
             IsReloading = true;
             GameEvents.RaiseReloadStateChanged(true);
 
-            yield return new WaitForSeconds(weaponData.reloadTime);
+            // Greased Lightnin' upgrade shortens this live.
+            float reloadTime = weaponData.reloadTime * (_upgrades != null ? _upgrades.ReloadTimeMultiplier : 1f);
+            yield return new WaitForSeconds(reloadTime);
 
             int needed = weaponData.magazineSize - Magazine;
             int toLoad = Mathf.Min(needed, Reserve);

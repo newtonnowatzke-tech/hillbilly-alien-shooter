@@ -27,6 +27,7 @@ namespace HillbillyAlienShooter.Player
         private InputAction _interact;
         private InputAction _whistle;
         private InputAction _togglePerspective;
+        private InputAction _upgrade;
 
         // ---- Public read API consumed by other player components ----
         public Vector2 MoveInput { get; private set; }
@@ -37,6 +38,7 @@ namespace HillbillyAlienShooter.Player
         public bool InteractPressedThisFrame { get; private set; }
         public bool WhistlePressedThisFrame { get; private set; }
         public bool TogglePerspectivePressedThisFrame { get; private set; }
+        public bool UpgradePressedThisFrame { get; private set; }
 
         // ---- Settings surface (persisted/driven by the pause menu) ----
         /// <summary>Mouse look sensitivity (per-pixel multiplier).</summary>
@@ -94,6 +96,11 @@ namespace HillbillyAlienShooter.Player
             _togglePerspective = new InputAction("TogglePerspective", InputActionType.Button);
             _togglePerspective.AddBinding("<Keyboard>/v");
             _togglePerspective.AddBinding("<Gamepad>/rightStickPress");
+
+            // Jury-rig a wild upgrade (spend tech): Q / left shoulder.
+            _upgrade = new InputAction("Upgrade", InputActionType.Button);
+            _upgrade.AddBinding("<Keyboard>/q");
+            _upgrade.AddBinding("<Gamepad>/leftShoulder");
         }
 
         private void OnEnable()
@@ -105,6 +112,7 @@ namespace HillbillyAlienShooter.Player
             _interact.Enable();
             _whistle.Enable();
             _togglePerspective.Enable();
+            _upgrade.Enable();
         }
 
         private void OnDisable()
@@ -116,6 +124,7 @@ namespace HillbillyAlienShooter.Player
             _interact.Disable();
             _whistle.Disable();
             _togglePerspective.Disable();
+            _upgrade.Disable();
         }
 
         private void OnDestroy()
@@ -127,6 +136,7 @@ namespace HillbillyAlienShooter.Player
             _interact?.Dispose();
             _whistle?.Dispose();
             _togglePerspective?.Dispose();
+            _upgrade?.Dispose();
         }
 
         private void Update()
@@ -151,6 +161,7 @@ namespace HillbillyAlienShooter.Player
             InteractPressedThisFrame = _interact.WasPressedThisFrame();
             WhistlePressedThisFrame = _whistle.WasPressedThisFrame();
             TogglePerspectivePressedThisFrame = _togglePerspective.WasPressedThisFrame();
+            UpgradePressedThisFrame = _upgrade.WasPressedThisFrame();
         }
     }
 }
