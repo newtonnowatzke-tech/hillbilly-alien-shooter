@@ -25,15 +25,27 @@ namespace HillbillyAlienShooter.Core
         public static void RaiseGameStateChanged(GameState state) => GameStateChanged?.Invoke(state);
 
         // ---------------------------------------------------------------
-        // Waves
+        // Waves & campaign (multi-wave from Packet 3.1)
         // ---------------------------------------------------------------
-        /// <summary>Fired when a wave begins. Arg: 1-based wave number.</summary>
-        public static event Action<int> WaveStarted;
-        public static void RaiseWaveStarted(int waveNumber) => WaveStarted?.Invoke(waveNumber);
+        /// <summary>Fired when a wave begins. Args: (1-based wave number, total waves).</summary>
+        public static event Action<int, int> WaveStarted;
+        public static void RaiseWaveStarted(int waveNumber, int totalWaves) => WaveStarted?.Invoke(waveNumber, totalWaves);
 
-        /// <summary>Fired when every enemy in a wave is gone. Arg: 1-based wave number.</summary>
-        public static event Action<int> WaveCompleted;
-        public static void RaiseWaveCompleted(int waveNumber) => WaveCompleted?.Invoke(waveNumber);
+        /// <summary>Fired when every enemy in a wave is gone. Args: (1-based wave number, total waves).</summary>
+        public static event Action<int, int> WaveCompleted;
+        public static void RaiseWaveCompleted(int waveNumber, int totalWaves) => WaveCompleted?.Invoke(waveNumber, totalWaves);
+
+        /// <summary>A between-waves breather began. Arg: rest duration in seconds.</summary>
+        public static event Action<float> RestStarted;
+        public static void RaiseRestStarted(float duration) => RestStarted?.Invoke(duration);
+
+        /// <summary>Every wave of the level has been cleared (the GameManager decides what that means).</summary>
+        public static event Action CampaignCompleted;
+        public static void RaiseCampaignCompleted() => CampaignCompleted?.Invoke();
+
+        /// <summary>The cattle gate was met — the mothership is descending (Packet 3.2 hook).</summary>
+        public static event Action MothershipSummoned;
+        public static void RaiseMothershipSummoned() => MothershipSummoned?.Invoke();
 
         /// <summary>Live count of enemies currently alive in the scene.</summary>
         public static event Action<int> EnemyCountChanged;
@@ -121,6 +133,9 @@ namespace HillbillyAlienShooter.Core
             GameStateChanged = null;
             WaveStarted = null;
             WaveCompleted = null;
+            RestStarted = null;
+            CampaignCompleted = null;
+            MothershipSummoned = null;
             EnemyCountChanged = null;
             EnemyKilled = null;
             TechChanged = null;

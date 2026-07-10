@@ -9,57 +9,83 @@ using HillbillyAlienShooter.Utils;
 namespace HillbillyAlienShooter.Waves
 {
     /// <summary>
-    /// Spawns a single wave of aliens for Packet 1.1. Reads a <see cref="WaveData"/>
-    /// SO (or falls back to a default), drips enemies in on an interval from either
-    /// designer-placed spawn points or an auto-generated ring around the farm, then
-    /// waits for the wave to be cleared and raises <c>WaveCompleted</c>.
+    /// Runs the farm CAMPAIGN (Packet 3.1): a sequence of escalating
+    /// <see cref="WaveData"/> assets with brief rest periods in between.
     ///
-    /// Structured so Packet 3.1 can hand it a LIST of waves and loop.
+    /// Per wave: announce → drip-spawn every entry → wait for the field to
+    /// clear (via <see cref="EnemyRegistry"/>) → announce the clear → rest
+    /// (heal/restock/spend-tech window, handled by listeners) → next wave.
+    /// After the final wave it raises <c>CampaignCompleted</c>; the GameManager
+    /// owns what that means (win + the cattle-count mothership gate).
+    ///
+    /// Spawning stops cold if the session ends mid-wave (no aliens piling
+    /// onto the lose screen).
     /// </summary>
     public class WaveSpawner : MonoBehaviour
     {
-        [Header("Wave definition (optional — falls back to a default)")]
-        [SerializeField] private WaveData wave;
+        [Header("Campaign (falls back to one default wave if empty)")]
+        [SerializeField] private List<WaveData> waves = new List<WaveData>();
+
+        [Header("Rest between waves")]
+        [Tooltip("Breather length in seconds — patch up, restock, jury-rig.")]
+        [SerializeField] private float restDuration = 12f;
 
         [Header("Spawning")]
         [Tooltip("Optional spawn points. If empty, a ring is generated around the origin.")]
         [SerializeField] private Transform[] spawnPoints;
         [Tooltip("Radius of the auto-generated spawn ring when no spawn points are set.")]
         [SerializeField] private float spawnRingRadius = 22f;
-        [Tooltip("Optional custom enemy prefab. If null, a low-poly primitive alien is built.")]
+        [Tooltip("Optional custom enemy prefab. If null, low-poly primitive enemies are built.")]
         [SerializeField] private GameObject enemyPrefab;
 
-        [Tooltip("1-based wave number reported to the HUD/GameManager.")]
-        [SerializeField] private int waveNumber = 1;
+        private void OnEnable() => GameEvents.GameStateChanged += OnGameStateChanged;
+        private void OnDisable() => GameEvents.GameStateChanged -= OnGameStateChanged;
 
-        private int _spawnedCount;
-        private int _totalToSpawn;
-        private bool _waveRunning;
+        private void OnGameStateChanged(GameState state)
+        {
+            // Session over (win or lose) → stop feeding the meat grinder.
+            if (state == GameState.Won || state == GameState.Lost)
+                StopAllCoroutines();
+        }
 
         private IEnumerator Start()
         {
-            if (wave == null)
-                wave = WaveData.CreateDefault();
+            if (waves == null || waves.Count == 0)
+                waves = new List<WaveData> { WaveData.CreateDefault() };
 
-            _totalToSpawn = wave.TotalEnemies;
+            int total = waves.Count;
 
-            // Small delay so the player can get their bearings (and read the banner).
-            yield return new WaitForSeconds(wave.startDelay);
+            for (int i = 0; i < total; i++)
+            {
+                WaveData wave = waves[i];
+                if (wave == null) continue;
 
-            GameEvents.RaiseWaveStarted(waveNumber);
-            _waveRunning = true;
+                // The opening delay only applies to the very first wave — later
+                // waves are paced by the rest period instead.
+                if (i == 0)
+                    yield return new WaitForSeconds(wave.startDelay);
 
-            yield return StartCoroutine(SpawnAll());
+                GameEvents.RaiseWaveStarted(i + 1, total);
 
-            // Wait until every spawned enemy — ground alien or saucer — is gone.
-            while (EnemyRegistry.Count > 0)
-                yield return null;
+                yield return StartCoroutine(SpawnAll(wave));
 
-            _waveRunning = false;
-            GameEvents.RaiseWaveCompleted(waveNumber);
+                // Wait until every enemy — ground alien or saucer — is gone.
+                while (EnemyRegistry.Count > 0)
+                    yield return null;
+
+                GameEvents.RaiseWaveCompleted(i + 1, total);
+
+                if (i < total - 1)
+                {
+                    GameEvents.RaiseRestStarted(restDuration);
+                    yield return new WaitForSeconds(restDuration);
+                }
+            }
+
+            GameEvents.RaiseCampaignCompleted();
         }
 
-        private IEnumerator SpawnAll()
+        private IEnumerator SpawnAll(WaveData wave)
         {
             foreach (var entry in wave.spawns)
             {
@@ -67,7 +93,6 @@ namespace HillbillyAlienShooter.Waves
                 for (int i = 0; i < entry.count; i++)
                 {
                     SpawnOne(entry.enemy);
-                    _spawnedCount++;
                     yield return new WaitForSeconds(wave.spawnInterval);
                 }
             }
@@ -105,13 +130,6 @@ namespace HillbillyAlienShooter.Waves
                 origin.x + Mathf.Cos(angle) * spawnRingRadius,
                 0f,
                 origin.z + Mathf.Sin(angle) * spawnRingRadius);
-        }
-
-        /// <summary>Used by the editor scene builder to configure the wave.</summary>
-        public void EditorConfigure(WaveData waveData, int number)
-        {
-            wave = waveData;
-            waveNumber = number;
         }
 
 #if UNITY_EDITOR

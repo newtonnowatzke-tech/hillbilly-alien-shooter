@@ -84,6 +84,19 @@ and aliens shamble in from the tree line to rustle your cattle.
 
 ---
 
+## Testing checklist (Packet 3.1 — farm campaign)
+
+- [ ] **Wave banners:** the opener reads "WAVE 1 OF 5 — YEE-HAW!"; each start updates the count.
+- [ ] **Escalation:** wave 1 is scouts only; hunters join in 2; a saucer + Larges in 3; a Brute in 4; wave 5 throws everything including a War Saucer.
+- [ ] **Wave clear:** "WAVE CLEARED!" banner, then the rest countdown ("NEXT WAVE IN 12s — PATCH UP & JURY-RIG [Q]") ticks down.
+- [ ] **Rest perks:** each clear heals +20 HP (watch the HP readout) and restocks +8 reserve shells with a toast.
+- [ ] **Rest actions:** during the breather you can reload, roll upgrades, reposition, and whistle the horse.
+- [ ] **Campaign win (gate met):** finish all 5 waves with ≥ 3 cows → "THE MOTHERSHIP DESCENDS..." and a colossal saucer sinks out of the night sky over the farm.
+- [ ] **Campaign win (gate missed):** finish with 1–2 cows → "FARM DEFENDED!" plus the varmints-got-away hint; no mothership.
+- [ ] **End stats:** both end screens show cattle saved/rustled.
+- [ ] **Lose mid-campaign:** dying (or losing the herd) in any wave ends the run; NO further enemies spawn behind the lose screen.
+- [ ] **Restart:** R restarts the whole campaign at wave 1 with fresh tallies.
+
 ## Testing checklist (Packet 2.3 — alien tech upgrades)
 
 - [ ] **Start-of-wave hint:** a toast explains "[Q] jury-rig a wild upgrade — 5 tech a roll".
@@ -176,13 +189,14 @@ Select the assets in `Assets/_Project/Data/` and tweak in the Inspector:
 
 - **WeaponData_Shotgun** — damage, pellet count, spread, mag size, reload time, fire rate.
 - **EnemyData_LittleAlien** — health, move speed, grab range, abduction rate, melee.
-- **WaveData_Wave1** — enemy count, spawn interval, start delay.
+- **WaveData_Wave1…5** — per-wave enemy mix, spawn interval, start delay (the escalation curve).
 - **HorseData_Buttercup** — gallop speed, acceleration/braking, turn rates, follow
   distances, teleport failsafe distance, coat/mane/saddle colors.
 - **UpgradeData_*** — five wild-pool upgrades: effect amount, duration, max stacks,
   explosion damage, pool weight, and the toast flavor line.
 
-The `GameManager` has **Cattle Needed To Win** (default 1). The `WaveSpawner` has a
+The `GameManager` has **Cattle To Summon Mothership** (default 3 — the progression
+gate). The `WaveSpawner` has a **Rest Duration** (12 s between waves) and a
 **Spawn Ring Radius** and a gizmo showing where aliens come from.
 
 ---
@@ -212,9 +226,9 @@ Weapons/   Shotgun (hitscan spread + ammo/reload + explosive rounds — works on
 Enemies/   AlienEnemy (Rustler/Hunter roles, Swipe/Smash attacks), UfoEnemy (abduction +
            support fire), PlasmaBolt, EnemyRegistry (shared alive count)
 Pickups/   TechPickup (magnet-collect tech shards → TechInventory)
-Effects/   ShockwaveFx (Brute slam ring)
+Effects/   ShockwaveFx (Brute slam ring), MothershipFx (gate-met set piece)
 Cattle/    Cattle (abduction meter + terrain-aware wander)      [namespace: Livestock]
-Waves/     WaveSpawner (drip-spawn one wave, role-aware)
+Waves/     WaveSpawner (five-wave campaign: drip-spawn, rest periods, campaign-complete)
 Data/      WeaponData, EnemyData (roles + attack styles), WaveData, HorseData,
            UpgradeData (wild pool entries) — all ScriptableObjects
 UI/        HUDController, PauseMenu, EnemyHealthBar (all self-building, event-driven)

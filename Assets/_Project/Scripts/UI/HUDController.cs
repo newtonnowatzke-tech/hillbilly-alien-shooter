@@ -30,9 +30,15 @@ namespace HillbillyAlienShooter.UI
         private Text _upgradeText;  // active upgrade slots + countdowns
         private Text _toastText;    // "BOOMSTICK ROUNDS! Now THAT'S a boomstick!"
 
+        private Text _restText;     // "NEXT WAVE IN 9s..."
+
         private Font _font;
         private float _bannerHideTime;
         private float _toastHideTime;
+        private float _restEndTime = -1f;
+        private bool _mothershipComing;
+        private int _lastSaved;
+        private int _lastTaken;
 
         // Local mirror of active upgrades: name -> (expiry time, stacks).
         // The HUD counts down between UpgradeChanged events on its own.
@@ -53,6 +59,7 @@ namespace HillbillyAlienShooter.UI
             GameEvents.AmmoChanged += OnAmmo;
             GameEvents.ReloadStateChanged += OnReload;
             GameEvents.WaveStarted += OnWaveStarted;
+            GameEvents.WaveCompleted += OnWaveCompleted;
             GameEvents.GameStateChanged += OnGameState;
             GameEvents.InteractPromptChanged += OnPrompt;
             GameEvents.HorseStateChanged += OnHorseState;
@@ -60,6 +67,8 @@ namespace HillbillyAlienShooter.UI
             GameEvents.UpgradeToast += OnUpgradeToast;
             GameEvents.UpgradeChanged += OnUpgradeChanged;
             GameEvents.UpgradeExpired += OnUpgradeExpired;
+            GameEvents.RestStarted += OnRestStarted;
+            GameEvents.MothershipSummoned += OnMothershipSummoned;
         }
 
         private void OnDisable()
@@ -69,6 +78,7 @@ namespace HillbillyAlienShooter.UI
             GameEvents.AmmoChanged -= OnAmmo;
             GameEvents.ReloadStateChanged -= OnReload;
             GameEvents.WaveStarted -= OnWaveStarted;
+            GameEvents.WaveCompleted -= OnWaveCompleted;
             GameEvents.GameStateChanged -= OnGameState;
             GameEvents.InteractPromptChanged -= OnPrompt;
             GameEvents.HorseStateChanged -= OnHorseState;
@@ -76,6 +86,8 @@ namespace HillbillyAlienShooter.UI
             GameEvents.UpgradeToast -= OnUpgradeToast;
             GameEvents.UpgradeChanged -= OnUpgradeChanged;
             GameEvents.UpgradeExpired -= OnUpgradeExpired;
+            GameEvents.RestStarted -= OnRestStarted;
+            GameEvents.MothershipSummoned -= OnMothershipSummoned;
         }
 
         private void Update()
@@ -86,7 +98,24 @@ namespace HillbillyAlienShooter.UI
             if (_toastText.enabled && Time.time >= _toastHideTime)
                 _toastText.enabled = false;
 
+            RefreshRestCountdown();
             RefreshUpgradeList();
+        }
+
+        private void RefreshRestCountdown()
+        {
+            if (_restEndTime < 0f) return;
+
+            float remaining = _restEndTime - Time.time;
+            if (remaining <= 0f)
+            {
+                _restEndTime = -1f;
+                _restText.enabled = false;
+                return;
+            }
+
+            _restText.text = $"NEXT WAVE IN {Mathf.CeilToInt(remaining)}s — PATCH UP & JURY-RIG [Q]";
+            _restText.enabled = true;
         }
 
         /// <summary>Redraws the active-upgrade slots with locally-ticked countdowns.</summary>
@@ -118,8 +147,16 @@ namespace HillbillyAlienShooter.UI
         private void OnHealth(float current, float max) =>
             _healthText.text = $"HP  {Mathf.CeilToInt(current)}/{Mathf.CeilToInt(max)}";
 
-        private void OnCattle(int saved, int taken, int total) =>
+        private void OnCattle(int saved, int taken, int total)
+        {
+            _lastSaved = saved;
+            _lastTaken = taken;
             _cattleText.text = $"CATTLE SAVED {saved}     RUSTLED {taken}";
+        }
+
+        private void OnRestStarted(float duration) => _restEndTime = Time.time + duration;
+
+        private void OnMothershipSummoned() => _mothershipComing = true;
 
         private void OnAmmo(int magazine, int reserve) =>
             _ammoText.text = $"SHELLS  {magazine} / {reserve}";
@@ -170,11 +207,19 @@ namespace HillbillyAlienShooter.UI
         private void OnUpgradeExpired(string name) =>
             _upgrades.RemoveAll(u => u.name == name);
 
-        private void OnWaveStarted(int waveNumber)
+        private void OnWaveStarted(int waveNumber, int totalWaves)
         {
-            _bannerText.text = $"WAVE {waveNumber} — YEE-HAW!";
+            _bannerText.text = $"WAVE {waveNumber} OF {totalWaves} — YEE-HAW!";
             _bannerText.enabled = true;
             _bannerHideTime = Time.time + 2.5f;
+        }
+
+        private void OnWaveCompleted(int waveNumber, int totalWaves)
+        {
+            if (waveNumber >= totalWaves) return; // final clear → the end screen handles it
+            _bannerText.text = "WAVE CLEARED!";
+            _bannerText.enabled = true;
+            _bannerHideTime = Time.time + 2f;
         }
 
         private void OnGameState(GameState state)
@@ -182,16 +227,34 @@ namespace HillbillyAlienShooter.UI
             bool over = state == GameState.Won || state == GameState.Lost;
             _endText.enabled = over;
             _endHint.enabled = over;
+            if (over)
+            {
+                _restEndTime = -1f;
+                _restText.enabled = false;
+            }
+
+            string stats = $"Cattle saved {_lastSaved} — rustled {_lastTaken}";
 
             if (state == GameState.Won)
             {
-                _endText.text = "FARM DEFENDED!";
-                _endText.color = new Color(0.6f, 1f, 0.5f);
+                if (_mothershipComing)
+                {
+                    _endText.text = "THE MOTHERSHIP DESCENDS...";
+                    _endText.color = new Color(0.6f, 1f, 0.8f);
+                    _endHint.text = $"{stats}\nYou saved enough of the herd to lure 'em in. TO BE CONTINUED (Packet 3.2) — R to replay";
+                }
+                else
+                {
+                    _endText.text = "FARM DEFENDED!";
+                    _endText.color = new Color(0.6f, 1f, 0.5f);
+                    _endHint.text = $"{stats}\nThe varmints got away clean... save more cows to lure the mothership! R to try again";
+                }
             }
             else if (state == GameState.Lost)
             {
                 _endText.text = "THEM ALIENS GOT YER CATTLE...";
                 _endText.color = new Color(1f, 0.5f, 0.4f);
+                _endHint.text = $"{stats}\nPress R to saddle up again";
             }
         }
 
@@ -278,6 +341,11 @@ namespace HillbillyAlienShooter.UI
                 Vector2.zero, new Vector2(1400f, 60f), 32, TextAnchor.MiddleCenter, new Color(0.6f, 1f, 0.6f));
             _toastText.fontStyle = FontStyle.Bold;
             _toastText.enabled = false;
+
+            // Between-waves rest countdown, just under the wave banner spot.
+            _restText = MakeText(root, "RestText", new Vector2(0.5f, 0.64f), new Vector2(0.5f, 0.5f),
+                Vector2.zero, new Vector2(1400f, 50f), 30, TextAnchor.MiddleCenter, new Color(0.75f, 0.95f, 1f));
+            _restText.enabled = false;
         }
 
         private Text MakeText(Transform parent, string name, Vector2 anchorMin, Vector2 anchorMax,
