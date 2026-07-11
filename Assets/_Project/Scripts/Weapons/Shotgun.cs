@@ -92,8 +92,29 @@ namespace HillbillyAlienShooter.Weapons
                 muzzle = aimSource;
         }
 
-        private void OnEnable() => GameEvents.GameStateChanged += OnGameStateChanged;
-        private void OnDisable() => GameEvents.GameStateChanged -= OnGameStateChanged;
+        [Header("Rest-period restock (Packet 3.1)")]
+        [Tooltip("Reserve shells found 'in the truck' after each cleared wave.")]
+        [SerializeField] private int shellsPerWaveClear = 8;
+
+        private void OnEnable()
+        {
+            GameEvents.GameStateChanged += OnGameStateChanged;
+            GameEvents.WaveCompleted += OnWaveCompleted;
+        }
+
+        private void OnDisable()
+        {
+            GameEvents.GameStateChanged -= OnGameStateChanged;
+            GameEvents.WaveCompleted -= OnWaveCompleted;
+        }
+
+        private void OnWaveCompleted(int wave, int total)
+        {
+            if (shellsPerWaveClear <= 0) return;
+            AddReserve(shellsPerWaveClear);
+            if (wave < total)
+                GameEvents.RaiseUpgradeToast($"Restocked {shellsPerWaveClear} shells from the truck!");
+        }
 
         // No firing from the pause menu / end screens (a Resume click must not
         // discharge the shotgun into whatever's behind the button).

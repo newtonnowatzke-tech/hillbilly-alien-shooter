@@ -5,10 +5,12 @@ using UnityEngine.SceneManagement;
 namespace HillbillyAlienShooter.Core
 {
     /// <summary>
-    /// Owns the session state machine and the single-wave win/lose rules for
-    /// Packet 1.1:
-    ///   WIN  — the wave is cleared with at least <see cref="cattleNeededToWin"/> cows saved.
+    /// Owns the session state machine and the campaign rules (Packet 3.1):
+    ///   WIN  — every wave cleared with the herd not wiped out.
     ///   LOSE — the hillbilly dies, OR every cow gets rustled.
+    ///   GATE — win with ≥ <see cref="cattleToSummonMothership"/> cows saved and
+    ///          the MOTHERSHIP descends over the farm (the Packet 3.2 hook);
+    ///          save fewer and the varmints get away clean.
     ///
     /// Also does defensive static cleanup on Awake so restarts behave correctly
     /// even with fast (no-domain-reload) play mode.
@@ -17,9 +19,9 @@ namespace HillbillyAlienShooter.Core
     {
         public static GameManager Instance { get; private set; }
 
-        [Header("Win condition")]
-        [Tooltip("Minimum cows that must survive the wave to count as a win.")]
-        [SerializeField] private int cattleNeededToWin = 1;
+        [Header("Progression gate")]
+        [Tooltip("Cows that must survive the campaign to lure the mothership in.")]
+        [SerializeField] private int cattleToSummonMothership = 3;
 
         public GameState State { get; private set; } = GameState.Boot;
 
@@ -44,14 +46,14 @@ namespace HillbillyAlienShooter.Core
 
         private void OnEnable()
         {
-            GameEvents.WaveCompleted += OnWaveCompleted;
+            GameEvents.CampaignCompleted += OnCampaignCompleted;
             GameEvents.PlayerDied += OnPlayerDied;
             GameEvents.CattleCountsChanged += OnCattleCountsChanged;
         }
 
         private void OnDisable()
         {
-            GameEvents.WaveCompleted -= OnWaveCompleted;
+            GameEvents.CampaignCompleted -= OnCampaignCompleted;
             GameEvents.PlayerDied -= OnPlayerDied;
             GameEvents.CattleCountsChanged -= OnCattleCountsChanged;
         }
@@ -80,15 +82,20 @@ namespace HillbillyAlienShooter.Core
             }
         }
 
-        private void OnWaveCompleted(int waveNumber)
+        private void OnCampaignCompleted()
         {
             if (State != GameState.Playing) return;
 
-            // Cleared the wave — did enough cattle survive?
-            if (HillbillyAlienShooter.Livestock.Cattle.SavedCount >= cattleNeededToWin)
-                SetState(GameState.Won);
-            else
-                SetState(GameState.Lost);
+            // Surviving every wave IS the win (a wiped herd already lost above).
+            SetState(GameState.Won);
+
+            // The gate: enough cattle saved lures the mothership down —
+            // Packet 3.2 boards it. Otherwise the rustlers slip away clean.
+            if (HillbillyAlienShooter.Livestock.Cattle.SavedCount >= cattleToSummonMothership)
+            {
+                GameEvents.RaiseMothershipSummoned();
+                HillbillyAlienShooter.Utils.LowPolyFactory.BuildMothership(new Vector3(0f, 0f, 10f));
+            }
         }
 
         private void OnPlayerDied()

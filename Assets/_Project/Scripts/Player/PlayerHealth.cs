@@ -12,6 +12,9 @@ namespace HillbillyAlienShooter.Player
     [RequireComponent(typeof(Health))]
     public class PlayerHealth : MonoBehaviour
     {
+        [Tooltip("HP patched up during each between-wave breather (Packet 3.1).")]
+        [SerializeField] private float healPerWaveClear = 20f;
+
         private Health _health;
 
         private void Awake() => _health = GetComponent<Health>();
@@ -20,12 +23,22 @@ namespace HillbillyAlienShooter.Player
         {
             _health.Damaged += OnDamaged;
             _health.Died += OnDied;
+            GameEvents.WaveCompleted += OnWaveCompleted;
         }
 
         private void OnDisable()
         {
             _health.Damaged -= OnDamaged;
             _health.Died -= OnDied;
+            GameEvents.WaveCompleted -= OnWaveCompleted;
+        }
+
+        /// <summary>Rest-period patch-up: bandages between waves, not during them.</summary>
+        private void OnWaveCompleted(int wave, int total)
+        {
+            if (!_health.IsAlive || healPerWaveClear <= 0f) return;
+            _health.Heal(healPerWaveClear);
+            GameEvents.RaisePlayerHealthChanged(_health.Current, _health.Max);
         }
 
         private void Start()

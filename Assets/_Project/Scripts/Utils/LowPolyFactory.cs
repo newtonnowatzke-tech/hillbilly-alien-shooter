@@ -353,6 +353,55 @@ namespace HillbillyAlienShooter.Utils
             return go;
         }
 
+        /// <summary>
+        /// The MOTHERSHIP (Packet 3.1 progression gate): a colossal set-piece
+        /// saucer that descends over the farm when enough cattle are saved.
+        /// No collider, no health — Packet 3.2 boards it.
+        /// </summary>
+        public static GameObject BuildMothership(Vector3 groundCenter)
+        {
+            var root = new GameObject("Mothership");
+            root.transform.position = new Vector3(groundCenter.x, 60f, groundCenter.z);
+
+            var hull = MakeMaterial(new Color(0.25f, 0.26f, 0.33f), 0.7f);   // ominous gunmetal
+            var domeMat = MakeMaterial(new Color(0.5f, 1f, 0.6f), 0.55f);
+            var vent = MakeMaterial(new Color(0.12f, 0.12f, 0.16f), 0.4f);
+
+            Prim(PrimitiveType.Sphere, root.transform, "Hull", Vector3.zero, new Vector3(18f, 3.6f, 18f), hull, collider: false);
+            Prim(PrimitiveType.Sphere, root.transform, "Dome", new Vector3(0f, 2.2f, 0f), new Vector3(6.5f, 4.5f, 6.5f), domeMat, collider: false);
+            Prim(PrimitiveType.Sphere, root.transform, "Underbelly", new Vector3(0f, -1.6f, 0f), new Vector3(7f, 2.2f, 7f), vent, collider: false);
+
+            // Double ring of running lights.
+            var lightA = MakeMaterial(new Color(1f, 0.85f, 0.35f), 0.9f);
+            var lightB = MakeMaterial(new Color(0.4f, 1f, 0.9f), 0.9f);
+            for (int ring = 0; ring < 2; ring++)
+            {
+                int count = ring == 0 ? 12 : 8;
+                float radius = ring == 0 ? 8.4f : 5.2f;
+                float y = ring == 0 ? 0.4f : 1.4f;
+                for (int i = 0; i < count; i++)
+                {
+                    float a = (i / (float)count) * Mathf.PI * 2f;
+                    Prim(PrimitiveType.Sphere, root.transform, "RunningLight",
+                        new Vector3(Mathf.Cos(a) * radius, y, Mathf.Sin(a) * radius),
+                        Vector3.one * 0.7f, i % 2 == 0 ? lightA : lightB, collider: false);
+                }
+            }
+
+            // A vast sickly glow pooling over the whole pasture.
+            var glowGo = new GameObject("AbyssalGlow");
+            glowGo.transform.SetParent(root.transform, false);
+            glowGo.transform.localPosition = new Vector3(0f, -2.5f, 0f);
+            var glow = glowGo.AddComponent<Light>();
+            glow.type = LightType.Point;
+            glow.color = new Color(0.5f, 1f, 0.7f);
+            glow.intensity = 4f;
+            glow.range = 45f;
+
+            root.AddComponent<HillbillyAlienShooter.Effects.MothershipFx>();
+            return root;
+        }
+
         // -----------------------------------------------------------------
         // Pickups
         // -----------------------------------------------------------------

@@ -227,22 +227,42 @@ namespace HillbillyAlienShooter.EditorTools
                 }),
             };
 
-            // Wave 1 composition is authored here and refreshed on every rebuild
-            // so new enemy types flow into existing projects. (Tune counts freely
-            // in the Inspector afterwards — until the next scene rebuild.)
-            WaveData waveData = CreateOrLoad<WaveData>($"{DataFolder}/WaveData_Wave1.asset", w =>
+            // --- The five-wave farm campaign (Packet 3.1) -------------------
+            // Compositions are authored here and refreshed on every rebuild so
+            // escalation tuning ships with the code. Tweak in the Inspector
+            // between rebuilds if you want to experiment.
+            WaveData MakeWave(string file, string title, float startDelay, float interval,
+                params (EnemyData enemy, int count)[] entries)
             {
-                w.waveName = "Wave 1";
-            });
-            waveData.spawns = new System.Collections.Generic.List<WaveData.SpawnEntry>
+                var w = CreateOrLoad<WaveData>($"{DataFolder}/{file}.asset", x => { });
+                w.waveName = title;
+                w.startDelay = startDelay;
+                w.spawnInterval = interval;
+                w.spawns = new System.Collections.Generic.List<WaveData.SpawnEntry>();
+                foreach (var (enemy, count) in entries)
+                    w.spawns.Add(new WaveData.SpawnEntry { enemy = enemy, count = count });
+                EditorUtility.SetDirty(w);
+                return w;
+            }
+
+            var campaign = new Object[]
             {
-                new WaveData.SpawnEntry { enemy = littleAlien, count = 6 },
-                new WaveData.SpawnEntry { enemy = mediumAlien, count = 3 },
-                new WaveData.SpawnEntry { enemy = largeAlien, count = 2 },
-                new WaveData.SpawnEntry { enemy = brute, count = 1 },
-                new WaveData.SpawnEntry { enemy = warSaucer, count = 1 },
+                // Gentle intro: weaving scouts only — learn the save-the-cow loop.
+                MakeWave("WaveData_Wave1", "First Contact", 3f, 1.3f,
+                    (littleAlien, 6)),
+                // Hunters join: now you're a target too.
+                MakeWave("WaveData_Wave2", "Rustle Up", 0f, 1.15f,
+                    (littleAlien, 8), (mediumAlien, 3)),
+                // First air support + heavies.
+                MakeWave("WaveData_Wave3", "Saucer Season", 0f, 1f,
+                    (littleAlien, 8), (mediumAlien, 4), (largeAlien, 2), (scoutSaucer, 1)),
+                // The wall arrives.
+                MakeWave("WaveData_Wave4", "Heavy Metal", 0f, 0.95f,
+                    (littleAlien, 6), (mediumAlien, 4), (largeAlien, 3), (brute, 1), (scoutSaucer, 1)),
+                // Everything they've got.
+                MakeWave("WaveData_Wave5", "The Whole Dang Armada", 0f, 0.8f,
+                    (littleAlien, 8), (mediumAlien, 5), (largeAlien, 3), (brute, 2), (warSaucer, 1), (scoutSaucer, 1)),
             };
-            EditorUtility.SetDirty(waveData);
 
             HorseData horseData = CreateOrLoad<HorseData>($"{DataFolder}/HorseData_Buttercup.asset", h =>
             {
@@ -284,7 +304,7 @@ namespace HillbillyAlienShooter.EditorTools
 
             var spawnerGo = new GameObject("WaveSpawner");
             var spawner = spawnerGo.AddComponent<WaveSpawner>();
-            AssignObjectRef(spawner, "wave", waveData);
+            AssignObjectList(spawner, "waves", campaign);
 
             new GameObject("HUD").AddComponent<HUDController>();
             new GameObject("PauseMenu").AddComponent<PauseMenu>();

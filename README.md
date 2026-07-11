@@ -72,6 +72,12 @@ Browser quirks are pre-handled: click once to capture the mouse, Esc auto-pauses
 - 🛸 **Scout Saucers** — dish-shaped UFOs with rim lights and a belly glow that hover over the herd and beam cows up *from the air*; can't be body-blocked, must be shot down; spin-crash death
 - 💎 **Alien tech drops** — dead invaders drop glowing tech shards that magnet-collect as you ride past; the HUD tallies them (the Packet 2.3 upgrade system spends them; saucers always pay out 3)
 
+### The farm campaign (Packet 3.1)
+- 🌊 **Five escalating waves** — from a gentle scouts-only "First Contact" to "The Whole Dang Armada" (heavies, Brutes, and a War Saucer with air support); counts up, spawn gaps down
+- ⛺ **Rest periods** — 12 s breathers between waves: **+20 HP patched up**, **+8 shells restocked from the truck**, and a countdown prompting you to jury-rig upgrades while it's quiet
+- 🛸🛸🛸 **The progression gate** — finish the campaign with **3+ cows saved** and the **MOTHERSHIP descends** over the farm (Packet 3.2 boards it); save fewer and the varmints get away clean
+- 📊 **Wave-aware UI** — "WAVE 3 OF 5" banners, "WAVE CLEARED!", rest countdowns, and end screens with cattle stats + your gate result
+
 ### Alien tech upgrades (Packet 2.3)
 - 🎰 **Jury-rig (Q)** — spend 5 alien tech on a **wild upgrade roll** from the weighted random pool; every roll is a mid-fight gamble
 - 🔫 **The pool** — **Extra Shells** (+12 reserve, instant), **Greased Lightnin'** (reload ×0.45, 20 s), **Boomstick Rounds** (pellet impacts detonate in an AoE, 15 s), **Hair Trigger** (fire rate ×~2, 15 s), **Moonshine Timer** (+8 s to every running upgrade — a gamble that whiffs if nothing's active)
@@ -104,8 +110,8 @@ Development proceeds in self-contained **work packets** (see the [roadmap](docs/
 | **2 — Combat & Enemies** | 2.1 | Little & Medium aliens, tech drops, UFO abduction beams | ✅ Done |
 | | 2.2 | Large aliens, Brutes, combat UFOs, weak points, health bars | ✅ Done |
 | | 2.3 | Alien tech upgrade system (ammo, reload, explosive, rapid fire…) | ✅ Done |
-| **3 — Progression** | 3.1 | Escalating farm waves, rest periods, progression gate | ⬜ Next |
-| | 3.2 | Alien ship boarding + space transition | ⬜ |
+| **3 — Progression** | 3.1 | Escalating farm waves, rest periods, mothership gate | ✅ Done |
+| | 3.2 | Alien ship boarding + space transition | ⬜ Next |
 | | 3.3 | Alien homeworld level | ⬜ |
 | | 3.4 | Alien King boss + finale | ⬜ |
 | **4 — Polish** | 4.1–4.4 | Cutscenes, audio, VFX/UI polish, balancing & save system | ⬜ |
@@ -152,7 +158,9 @@ Full instructions (with troubleshooting) in **[SETUP.md](SETUP.md)** — short v
 
 **Know your varmints.** Little scouts weave for the cows — lead them. Violet Mediums hunt *you* from the flanks — don't get pincered while lining up a cow rescue. Ember-orange Larges trade speed for hurt. When a moss-green Brute crouches, **run** — the shockwave ring marks where not to be. And when a saucer drifts overhead, drop everything: its air-beam rustles cattle faster than anything on the ground — aim for the **glowing dome** (2.5× damage) and dodge the pink plasma bolts the war models spit while they work.
 
-**Grab the glow, then gamble it.** Dead invaders drop shimmering alien tech — ride close and it flies to you. Five tech buys a **jury-rig roll (Q)**: maybe shells, maybe a hair trigger, maybe *boomstick rounds*. Rolling the same upgrade twice stacks it — and Moonshine Timer stretches everything that's already running. Roll mid-brawl at your own risk, partner.
+**Grab the glow, then gamble it.** Dead invaders drop shimmering alien tech — ride close and it flies to you. Five tech buys a **jury-rig roll (Q)**: maybe shells, maybe a hair trigger, maybe *boomstick rounds*. Rolling the same upgrade twice stacks it — and Moonshine Timer stretches everything that's already running. The between-wave breather is prime rolling time.
+
+**Go the distance.** It's a five-wave night. Every cleared wave patches you up (+20 HP) and restocks shells (+8) — but the herd doesn't heal, and the gate is cruel: **finish with 3+ cows or the mothership never shows.** Protecting cattle early is how you earn the ending.
 
 ## 🗂️ Project Structure
 
@@ -171,9 +179,9 @@ Assets/_Project/
     ├── Enemies/           AlienEnemy (roles + smash), UfoEnemy (+support fire),
     │                      PlasmaBolt, EnemyRegistry
     ├── Pickups/           TechPickup           (magnet-collect alien tech)
-    ├── Effects/           ShockwaveFx          (Brute slam ring)
+    ├── Effects/           ShockwaveFx (slam ring), MothershipFx (the descent)
     ├── Cattle/            Cattle               (abduction meter, registry, tallies)
-    ├── Waves/             WaveSpawner
+    ├── Waves/             WaveSpawner          (multi-wave campaign + rest periods)
     ├── Data/              WeaponData, EnemyData, WaveData, HorseData, UpgradeData
     ├── UI/                HUDController, PauseMenu, EnemyHealthBar
     ├── Utils/             LowPolyFactory, GameLayers, GroundSnap
@@ -212,7 +220,9 @@ All live in `Assets/_Project/Data/` — tweak in the Inspector, no code:
 | `EnemyData_Brute` | smash stats: AoE radius, wind-up (dodge window), 30-dmg slam, 220 HP tank pace |
 | `EnemyData_ScoutSaucer` | hover height & bob, beam lock radius, air abduction rate, hull HP, weak-point multiplier |
 | `EnemyData_WarSaucer` | everything the scout has **plus** support fire: bolt damage/speed/interval/range |
-| `WaveData_Wave1` | spawn list (currently 6 Little + 3 Medium + 2 Large + 1 Brute + 1 War Saucer), start delay, spawn interval |
+| `WaveData_Wave1…5` | per-wave spawn lists, start delay, spawn interval — the whole escalation curve |
+| `WaveSpawner` (scene) | wave sequence, rest duration (12 s default), spawn ring radius |
+| `GameManager` (scene) | cows required to summon the mothership (default 3) |
 | `UpgradeData_*` (5 assets) | per-upgrade amount, duration, max stacks, explosion damage, pool weight, flavor line |
 | `WeaponUpgradeController` (player) | roll cost (default 5 tech) and which assets are in the wild pool |
 | `HorseData_Buttercup` | gallop/walk/reverse speeds, acceleration, braking, turn rates (standing vs gallop), follow/gallop/teleport distances, colors |
