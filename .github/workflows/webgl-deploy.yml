@@ -10,11 +10,14 @@
 # Play URL after the first successful run:
 #   https://newtonnowatzke-tech.github.io/hillbilly-alien-shooter/
 
-name: WebGL Build & Deploy
+name: WebGL Build & Deploy (Unity — manual only)
 
+# NOTE: The playable site now ships from the hand-built browser game via
+# pages-deploy.yml (no Unity needed). This Unity WebGL pipeline is kept for
+# folks who DO want the exact Unity build, but it's manual-only so it never
+# competes with the static Pages deploy. Needs the Unity license secrets
+# (see docs/WEBGL.md). Both target the same Pages site, so only run one.
 on:
-  push:
-    branches: [main]
   workflow_dispatch: {}
 
 permissions:

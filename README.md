@@ -6,6 +6,8 @@ The skies light up with glowing saucers in the dead of night. Greedy little gree
 
 > *Yee-haw! Them aliens ain't ready for this kind of country justice.*
 
+### ▶ Play now: open [`web/index.html`](web/index.html) in any browser — or visit the [live site](https://newtonnowatzke-tech.github.io/hillbilly-alien-shooter/). No install, works on phone.
+
 ---
 
 ## 📋 Table of Contents
@@ -39,14 +41,15 @@ The skies light up with glowing saucers in the dead of night. Greedy little gree
 
 You defend your herd across escalating waves of alien rustlers — Little scouts, faster Mediums, tough Larges, tanky Brutes, and dish-shaped UFOs with abduction beams. Alien tech drops power up your shotgun. Save enough cattle and you take the fight to *them*: board the mothership, invade the homeworld, and give the Alien King a double-barrel diplomacy lesson.
 
-## 🌐 Play in Your Browser (WebGL)
+## 🌐 Play in Your Browser — no install, no Unity
 
-The repo ships a full WebGL pipeline — see **[docs/WEBGL.md](docs/WEBGL.md)**:
+There are **two** versions of this game in the repo:
 
-- **Instant local playtest:** in Unity, **Tools ▸ Hillbilly ▸ Build WebGL** → serve `build/WebGL/` with any static server (or drag-drop the zip onto itch.io).
-- **Auto-published build:** every merge to `main` builds and deploys to GitHub Pages at **<https://newtonnowatzke-tech.github.io/hillbilly-alien-shooter/>** — after a one-time setup (enable Pages + add your free Unity license secrets; ~10 min, fully documented in the guide).
+1. **`web/` — a standalone browser game** (plain HTML5 + Canvas, zero engine, zero dependencies). This is the fastest way to play: **just open `web/index.html`** in any browser — desktop *or* phone — and it runs. No Unity, no account, no build step.
+   - **Live site:** <https://newtonnowatzke-tech.github.io/hillbilly-alien-shooter/> — auto-deploys on every push once you flip on GitHub Pages (Settings ▸ Pages ▸ Source → *GitHub Actions*). Static deploy, ~30 s, no secrets.
+   - Full desktop + touch controls, the five-wave campaign, horse riding, tech upgrades, and the mothership ending.
 
-Browser quirks are pre-handled: click once to capture the mouse, Esc auto-pauses (browsers reserve it to release the cursor), P also pauses, and Quit is hidden.
+2. **The Unity project** (`Assets/`) — the "real", higher-fidelity 3D version. Playable in-editor, or as a WebGL build via the manual Unity pipeline in **[docs/WEBGL.md](docs/WEBGL.md)** (needs a free Unity license). The two share design and roadmap; the web build is the play-anywhere companion.
 
 ## ✨ Current Features
 

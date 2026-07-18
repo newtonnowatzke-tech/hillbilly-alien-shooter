@@ -1,4 +1,14 @@
-# 🌐 WebGL Playtest Guide
+# 🌐 WebGL Playtest Guide (Unity build)
+
+> **Just want to play, no Unity?** You don't need any of this. There's a
+> standalone browser game at **`web/index.html`** — open it directly, or use the
+> live site at <https://newtonnowatzke-tech.github.io/hillbilly-alien-shooter/>
+> (auto-deploys via `.github/workflows/pages-deploy.yml` — just enable
+> **Settings ▸ Pages ▸ Source → GitHub Actions** once; no license, no secrets).
+> The guide below is only for building the **Unity** version to WebGL.
+
+---
+
 
 Two ways to get Hillbilly Alien Shooter running in a browser. **Option A is the
 fastest way to playtest today** (5 minutes, zero account setup). **Option B**
